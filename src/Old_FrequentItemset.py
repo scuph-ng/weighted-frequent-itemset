@@ -1,25 +1,14 @@
+"""
+Course: 503040 Design and Analysis of Algorithms
+Problem: Weighted Frequent Itemset Mining in Uncertain Datasets
+Author: Nguyen Hoang Phuc
+Github: scuph-ng
+"""
+
 import time
 import math
 from random import random
 from decimal import Decimal, getcontext
-
-
-class Item:
-    def __init__(self, item: int, support: float) -> None:
-        self.item = item
-        self.support = support
-
-    def __str__(self) -> str:
-        return "(%d, %.4f)" % (self.item, self.support)
-
-    def __repr__(self) -> str:
-        return str((self.item, self.support))
-
-    def getItem(self) -> int:
-        return self.item
-
-    def getSupport(self) -> float:
-        return self.support
 
 
 class FrequentItemsetAlgorithm:
@@ -28,7 +17,7 @@ class FrequentItemsetAlgorithm:
         self.t = 1
         self.msup = 1
         self.alpha = 0
-        self.T = []
+        self.T = list()
         self.I = dict()
         self.w = dict()
 
@@ -42,24 +31,19 @@ class FrequentItemsetAlgorithm:
             read the dataset to T and obtain the size n of dataset
 
         Output:
-            T   list[set[int]]
+            T   list[dict[frozenset[int], float]]
                 list of transactions, each transaction is an itemset that contains integers
-            n   int
-                dataset size
         """
         with open(filename, "r") as f:
             for line in f:
-                self.T.append(
-                    [Item(int(item), self._normal_dist()) for item in line.split()]
-                )
-            # self.T = [set(map(int, line.split())) for line in f]
-            # self.T = sorted(self.T, key=lambda x: x.item)
-            # for trans in self.T:
-            #     for item in trans:
-            #         print(item, end=" ")
-            #     print()
-            for item in self.T[0]:
-                print(item)
+                transaction = dict()
+                for item in line.split():
+                    transaction[frozenset([int(item)])] = self._normal_dist()
+                self.T.append(transaction)
+
+            # for item in self.T[0].items():
+            #     print(item)
+
         f.close()
         return
 
@@ -129,7 +113,7 @@ class FrequentItemsetAlgorithm:
     def _scan_find_size_1(self):
         """
         Input:
-            T       list[set(int)]
+            T       list[frozenset(Item)]
                 list of transactions in dataset
             I       dict{int, int}
                 dictionary of items and their support
