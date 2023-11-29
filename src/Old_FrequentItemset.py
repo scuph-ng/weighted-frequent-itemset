@@ -5,9 +5,9 @@ Author: Nguyen Hoang Phuc
 Github: scuph-ng
 """
 
-import time
 import math
 from random import random
+from time import perf_counter
 from decimal import Decimal, getcontext
 
 
@@ -47,7 +47,27 @@ class FrequentItemsetAlgorithm:
         f.close()
         return
 
+    # TODO: re-write other functions to adapt to T's changes
+
     def _normal_dist(self, mu: float = 0.5, sigma: float = 0.125) -> float:
+        """
+        Generate a random probability drawn from Normal distribution
+        with mean (0.5) and variance (0.125)
+        --------------------
+        Input:
+        mu:     float
+            Default: 0.5
+            Mean of Normal distribution
+
+        sigma:  float
+            Default: 0.125
+            Variance of Normal distribution
+
+        --------------------
+        Return:
+        f_X:    float
+            A random probability drawn from Normal distribution
+        """
         x = random()
         f_X = (1 / math.sqrt(2 * math.pi * sigma**2)) ** (
             -((x - mu) ** 2) / (2 * sigma**2)
@@ -56,20 +76,22 @@ class FrequentItemsetAlgorithm:
 
     def _Pr(self, X: set) -> float:
         """
+        Calculate the existential probability of an itemset
+        --------------------
         Input:
-            T       list[set(int)]
-                list of transactions in dataset
-            X       set(int)
-                an itemset
-            n       int
-                the dataset size
+        self.T      list[dict[frozenset[int], float]]
+            List of transactions in dataset
 
-        Functionality:
-            calculate the existential probability of the itemset
+        X           dict[frozenset[int], float]
+            An itemset with existential probability assigned to each item
 
-        Output:
-            result  float
-                the existential probability of the itemset
+        self.n      int
+            The number of transactions
+
+        --------------------
+        Return:
+        result:     float
+            The existential probability of an itemset
         """
         inv_n = 1 / self.n
         fX = [1] + [0 for _ in range(self.n)]
@@ -380,6 +402,7 @@ class FrequentItemsetAlgorithm:
             L   list[set[int]]
                 list of the itemsets that are the result of the algorithm
         """
+        # start_time = perf_counter()
         print("Processing input data...")
         self._read_data(data_file)
         return
@@ -393,8 +416,6 @@ class FrequentItemsetAlgorithm:
         self.msup = int(msup_ratio * self.n)
         self.t = threshold
         self.alpha = scale_factor
-
-        start_time = time.time()
 
         L1, support = self._scan_find_size_1()
         CK = [{i} for i in support.keys()]
@@ -431,7 +452,7 @@ class FrequentItemsetAlgorithm:
                 L.append(LK)
                 support.update(support_k)
 
-        end_time = time.time()
+        end_time = perf_counter()
         print("Runtime: %.2fs" % float(end_time - start_time))
         return L
 
