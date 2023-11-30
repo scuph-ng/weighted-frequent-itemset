@@ -24,21 +24,23 @@ class FrequentItemsetAlgorithm:
     def _read_data(self, filename: str):
         """
         Input:
-            filename    str
-                the dataset name
+        filename    str
+            Dataset name or directory to the dataset
 
         Functionality:
             read the dataset to T and obtain the size n of dataset
 
         Output:
-            T   list[dict[frozenset[int], float]]
-                list of transactions, each transaction is an itemset that contains integers
+            self.T   list[dict[int], float]]
+                Dataset is a list of transactions
+                Each transaction is a dictionary with keys are the frozensets of item
+                and the values are their existential probability
         """
         with open(filename, "r") as f:
             for line in f:
                 transaction = dict()
                 for item in line.split():
-                    transaction[frozenset([int(item)])] = self._normal_dist()
+                    transaction[item] = self._normal_dist()
                 self.T.append(transaction)
 
             # for item in self.T[0].items():
@@ -74,12 +76,15 @@ class FrequentItemsetAlgorithm:
         )
         return f_X
 
+    def _isESFI(self):
+        pass
+
     def _Pr(self, X: set) -> float:
         """
         Calculate the existential probability of an itemset
         --------------------
         Input:
-        self.T      list[dict[frozenset[int], float]]
+        self.T      list[dict[int, float]]
             List of transactions in dataset
 
         X           dict[frozenset[int], float]
@@ -114,10 +119,21 @@ class FrequentItemsetAlgorithm:
 
         return sum(fX[self.msup :])
 
-    def _itemset_weight(self, X: set) -> float:
+    def _itemset_support(self, X: dict[int, float], TX: dict[int, float]) -> float:
+        result = 1
+
+        for item in X.keys():
+            if item in TX:
+                result *= X[item]
+            else:
+                result *= 1 - X[item]
+
+        return result
+
+    def _itemset_weight(self, X: dict[int, float]) -> float:
         """
         Input:
-            X       set[int]
+            X       dict[int,]
                 an itemset of integers
             w       dict{frozenset, float}
                 dictionary contains candidates and their weight
@@ -129,13 +145,13 @@ class FrequentItemsetAlgorithm:
             w(X)    float
                 the average weight of the itemset
         """
-        weight = sum(self.w[item] for item in X)
+        weight = sum(self.w[item] for item in X.keys())
         return weight / len(X)
 
     def _scan_find_size_1(self):
         """
         Input:
-            T       list[frozenset(Item)]
+            T       list[dict[int, float]]
                 list of transactions in dataset
             I       dict{int, int}
                 dictionary of items and their support
@@ -156,8 +172,8 @@ class FrequentItemsetAlgorithm:
         mu_1 = {}
         support_count = {}
 
-        for transaction in self.T:
-            for item in transaction:
+        for tx in self.T:
+            for item in tx:
                 support_count[item] = support_count.get(item, 0) + 1
 
         self.I = support_count
