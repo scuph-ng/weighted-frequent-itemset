@@ -6,7 +6,7 @@ Github: scuph-ng
 """
 
 import math
-from random import random
+from random import random, gauss
 from time import perf_counter
 from decimal import Decimal, getcontext
 
@@ -31,60 +31,28 @@ class FrequentItemsetAlgorithm:
             read the dataset to T and obtain the size n of dataset
 
         Output:
-            self.T   list[dict[int], float]]
+            self.T   list[list[tuple(int, float)]]
                 Dataset is a list of transactions
-                Each transaction is a dictionary with keys are the frozensets of item
-                and the values are their existential probability
         """
         with open(filename, "r") as f:
             for line in f:
-                transaction = dict()
-                for item in line.split():
-                    transaction[item] = self._normal_dist()
+                transaction = [(int(item), gauss(0.5, 0.125)) for item in line.split()]
                 self.T.append(transaction)
 
-            # for item in self.T[0].items():
-            #     print(item)
+            # for item in self.T[0]:
+            #     print("(%d, %.2f)" % (item[0], item[1]))
 
         f.close()
         return
 
     # TODO: re-write other functions to adapt to T's changes
 
-    def _normal_dist(self, mu: float = 0.5, sigma: float = 0.125) -> float:
-        """
-        Generate a random probability drawn from Normal distribution
-        with mean (0.5) and variance (0.125)
-        --------------------
-        Input:
-        mu:     float
-            Default: 0.5
-            Mean of Normal distribution
-
-        sigma:  float
-            Default: 0.125
-            Variance of Normal distribution
-
-        --------------------
-        Return:
-        f_X:    float
-            A random probability drawn from Normal distribution
-        """
-        x = random()
-        f_X = (1 / math.sqrt(2 * math.pi * sigma**2)) ** (
-            -((x - mu) ** 2) / (2 * sigma**2)
-        )
-        return f_X
-
-    def _isESFI(self):
-        pass
-
-    def _Pr(self, X: set) -> float:
+    def _Pr(self, X: list[list[tuple[int, float]]]) -> float:
         """
         Calculate the existential probability of an itemset
         --------------------
         Input:
-        self.T      list[dict[int, float]]
+        self.T      list[list[tuple[int, float]]]
             List of transactions in dataset
 
         X           dict[frozenset[int], float]
@@ -119,21 +87,21 @@ class FrequentItemsetAlgorithm:
 
         return sum(fX[self.msup :])
 
-    def _itemset_support(self, X: dict[int, float], TX: dict[int, float]) -> float:
+    def _itemset_support(self, X: list[tuple[int, float]], TX) -> float:
         result = 1
 
-        for item in X.keys():
+        for item in X:
             if item in TX:
-                result *= X[item]
+                result *= item[1]
             else:
-                result *= 1 - X[item]
+                result *= 1 - item[1]
 
         return result
 
-    def _itemset_weight(self, X: dict[int, float]) -> float:
+    def _itemset_weight(self, X: list[tuple[int, float]]) -> float:
         """
         Input:
-            X       dict[int,]
+            X       list[tuple[int, float]]
                 an itemset of integers
             w       dict{frozenset, float}
                 dictionary contains candidates and their weight
@@ -145,13 +113,13 @@ class FrequentItemsetAlgorithm:
             w(X)    float
                 the average weight of the itemset
         """
-        weight = sum(self.w[item] for item in X.keys())
+        weight = sum(self.w[item[0]] for item in X)
         return weight / len(X)
 
     def _scan_find_size_1(self):
         """
         Input:
-            T       list[dict[int, float]]
+            T       list[list[tuple[int, float]]]
                 list of transactions in dataset
             I       dict{int, int}
                 dictionary of items and their support
@@ -174,9 +142,9 @@ class FrequentItemsetAlgorithm:
 
         for tx in self.T:
             for item in tx:
-                support_count[item] = support_count.get(item, 0) + 1
+                support_count[item[0]] = support_count.get(item[0], 0) + 1
 
-        self.I = support_count
+        # self.I = support_count
 
         for item, count in support_count.items():
             self.w[item] = 1
@@ -429,7 +397,7 @@ class FrequentItemsetAlgorithm:
         else:
             self.n = len(self.T)
 
-        self.msup = int(msup_ratio * self.n)
+        self.msup = msup_ratio
         self.t = threshold
         self.alpha = scale_factor
 
