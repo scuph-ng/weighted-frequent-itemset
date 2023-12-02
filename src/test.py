@@ -1,19 +1,31 @@
-import math
-import random
-import matplotlib.pyplot as plt
+def calculate_expected_support(transactions, itemset):
+    # Count occurrences of the itemset in transactions
+    itemset_count = sum(
+        1
+        for transaction in transactions
+        if all((item, prob) in transaction for item, prob in itemset)
+    )
+
+    # Calculate the expected support
+    total_transactions = len(transactions)
+    expected_support = itemset_count / total_transactions
+
+    return expected_support
 
 
-def normal_dist(mu, sigma, x):
-    # mu = random.random()
-    # sigma = random.random()
-    # Box-Muller
-    f_X = (1 / math.sqrt(2 * math.pi * sigma**2)) ** (-((x - mu) ** 2) / (2 * sigma**2))
-    return round(f_X, 1)
+# Example transactions with existential probabilities
+transactions = [
+    [(1, 0.1), (2, 0.2), (3, 0.3)],
+    [(4, 0.4), (2, 0.2), (6, 0.6)],
+    [(7, 0.7), (8, 0.8), (3, 0.3)],
+]
 
+# Example itemset with probabilities (you can replace this with your itemset)
+itemset = [(2, 0.2), (3, 0.3)]
 
-size = 1000
-y = [random.gauss(0.5, 0.125) for _ in range(size)]
+# Calculate expected support
+expected_support = calculate_expected_support(transactions, itemset)
 
-plt.hist(sorted(y))
-plt.show()
+# Print the result
+print("Expected Support for Itemset {}: {:.2%}".format(itemset, expected_support))
 

@@ -5,10 +5,20 @@ Author: Nguyen Hoang Phuc
 Github: scuph-ng
 """
 
-import math
-from random import random, gauss
+from math import e as E
+from math import exp, ceil
+from random import gauss, uniform
 from time import perf_counter
 from decimal import Decimal, getcontext
+
+
+class Item:
+    def __init__(self, value: int) -> None:
+        self.value = value
+        self.prob = ceil(gauss(0.5, 0.125) * 10) / 10
+
+    def setProb(self, new_prob: float) -> None:
+        self.prob = new_prob
 
 
 class FrequentItemsetAlgorithm:
@@ -31,31 +41,66 @@ class FrequentItemsetAlgorithm:
             read the dataset to T and obtain the size n of dataset
 
         Output:
-            self.T   list[list[tuple(int, float)]]
+            self.T   list[list[tuple[int, float]]]
                 Dataset is a list of transactions
         """
+
         with open(filename, "r") as f:
             for line in f:
-                transaction = [(int(item), gauss(0.5, 0.125)) for item in line.split()]
+                transaction = [Item(int(item)) for item in line.split()]
                 self.T.append(transaction)
 
-            # for item in self.T[0]:
-            #     print("(%d, %.2f)" % (item[0], item[1]))
+            self._generate_weight_table()
 
         f.close()
         return
 
-    # TODO: re-write other functions to adapt to T's changes
+    def _generate_weight_table(self):
+        unique_item = {item.value for tx in self.T for item in tx}
+        for item in unique_item:
+            self.w[item] = round(uniform(1e-6, 1), 1)
 
-    def _Pr(self, X: list[list[tuple[int, float]]]) -> float:
+    def _chernoff_bound(self, X: set[int]) -> bool:
+        def _expected_support(X: set[int]) -> float:
+            S_e = 0
+
+            for tx in self.T:
+                tx_items = {item.value for item in tx}
+
+                if not X.issubset(tx_items):
+                    continue
+
+                p_tx = 1
+                for item in tx:
+                    if item.value in X:
+                        p_tx *= item.prob
+                S_e += p_tx
+
+            print(S_e)
+            return S_e
+
+        # -----------------------------------------------------
+
+        mu = _expected_support(X)
+        sigma = (self.msup * self.n - mu - 1) / mu
+
+        if sigma >= 2 * E - 1 and pow(2, -sigma * mu) < self.t:
+            return False
+
+        if 0 < sigma < 2 * E - 1 and exp(-pow(sigma, 2) * mu / 4) < self.t:
+            return False
+
+        return True
+
+    def _Pr(self, X: list[Item]) -> float:
         """
         Calculate the existential probability of an itemset
         --------------------
         Input:
-        self.T      list[list[tuple[int, float]]]
+        self.T      list[list[Item]]
             List of transactions in dataset
 
-        X           dict[frozenset[int], float]
+        X           list[Item]
             An itemset with existential probability assigned to each item
 
         self.n      int
@@ -66,14 +111,18 @@ class FrequentItemsetAlgorithm:
         result:     float
             The existential probability of an itemset
         """
+
         inv_n = 1 / self.n
         fX = [1] + [0 for _ in range(self.n)]
 
+        X_items = [item.value for item in X]
+
         for transaction in self.T:
+            tx_items = [item.value for item in transaction]
             p_X_i = 1
 
-            for item in X:
-                if item not in transaction:
+            for item in X_items:
+                if item not in tx_items:
                     p_X_i = 0
                     break
                 p_X_i *= self.I[item] * inv_n
@@ -85,89 +134,88 @@ class FrequentItemsetAlgorithm:
                 f_X[k] = p_X_i * fX[k - 1] + (1 - p_X_i) * fX[k]
             fX = f_X[:]
 
-        return sum(fX[self.msup :])
+        return sum(fX[int(self.msup * self.n) :])
 
-    def _itemset_support(self, X: list[tuple[int, float]], TX) -> float:
+    def _itemset_support(self, X: list[Item], TX) -> float:
         result = 1
 
         for item in X:
             if item in TX:
-                result *= item[1]
+                result *= item.prob
             else:
-                result *= 1 - item[1]
+                result *= 1 - item.prob
 
         return result
 
-    def _itemset_weight(self, X: list[tuple[int, float]]) -> float:
+    def _itemset_weight(self, X: list[Item]) -> float:
         """
         Input:
-            X       list[tuple[int, float]]
+            X       list[Item]
                 an itemset of integers
-            w       dict{frozenset, float}
+            w       dict[frozenset[int], float]
                 dictionary contains candidates and their weight
 
         Functionality:
             calculate the mean weight of items in the itemset
 
         Output:
-            w(X)    float
+            w_X    float
                 the average weight of the itemset
         """
-        weight = sum(self.w[item[0]] for item in X)
-        return weight / len(X)
+
+        w_X = sum(self.w[item.value] for item in X)
+        return w_X / len(X)
 
     def _scan_find_size_1(self):
         """
         Input:
-            T       list[list[tuple[int, float]]]
+            T       list[list[Item]]
                 list of transactions in dataset
             I       dict{int, int}
-                dictionary of items and their support
-            msup    int
+                dictionary of items and their count
+            msup    float
                 the minimum support
 
         Functionality:
             scan the dataset and generate the size_1 candidates and their support
 
         Output:
-            L1      list[list[int]]
+            L1      list[list[tuple[int, float]]]
                 list of the size_1 candidates
-            mu_1    dict{frozenset(int), int}
-                dictionary of candidates and their support
+            mu_1    dict[frozenset[int], int]
+                dictionary of candidates and their count
         """
 
         L1 = []
         mu_1 = {}
-        support_count = {}
+        count = {}
 
         for tx in self.T:
             for item in tx:
-                support_count[item[0]] = support_count.get(item[0], 0) + 1
+                count[item.value] = count.get(item.value, 0) + 1
 
         # self.I = support_count
 
-        for item, count in support_count.items():
-            self.w[item] = 1
-
-            if count < self.msup:
+        for value, occurence in count.items():
+            if float(occurence) < self.msup * self.n:
                 continue
 
-            if self.w[item] * self._Pr({item}) < self.t:
+            if self.w[value] * self._Pr([value]) < self.t:
                 continue
 
-            L1.append([item])
-            mu_1[frozenset([item])] = count
+            L1.append([value])
+            mu_1[frozenset([value])] = occurence
 
         return L1, mu_1
 
-    def _scan_find_size_k(self, CK: list[set[int]]):
+    def _scan_find_size_k(self, CK: list[list[Item]]):
         """
         Input:
-            CK      list[set(int)]
+            CK      list[list[Item]]
                 list of candidates
-            T       list[set(int)]
+            T       list[list[Item]]
                 list of transactions
-            msup    int
+            msup    float
                 the minimum support for PFI mining
             w       dict{frozenset, float}
                 the weight table
@@ -184,7 +232,7 @@ class FrequentItemsetAlgorithm:
                 dictionary contains candidates and their support
         """
 
-        def _condition(candidate: set[int], count: int) -> bool:
+        def _condition(candidate: list[Item], count: int) -> bool:
             if count < self.msup:
                 return False
 
@@ -200,7 +248,7 @@ class FrequentItemsetAlgorithm:
 
         for transaction in self.T:
             for candidate in CK:
-                if candidate.issubset(transaction):
+                if set(candidate).issubset(transaction):
                     frozen_candidate = frozenset(candidate)
                     support_count[frozen_candidate] = (
                         support_count.get(frozen_candidate, 0) + 1
@@ -213,7 +261,7 @@ class FrequentItemsetAlgorithm:
 
         return LK, mu_k
 
-    def _algorithm_2(self, LK_: list[set[int]]):
+    def _algorithm_2(self, LK_: list[list[tuple[int, float]]]):
         """
         Input:
             LK      list[set(int)]
@@ -256,7 +304,7 @@ class FrequentItemsetAlgorithm:
 
         return CK
 
-    def _algorithm_3(self, LK_: list[set[int]]):
+    def _algorithm_3(self, LK_: list[list[tuple[int, float]]]):
         """
         Input:
             LK      list[set(int)]
@@ -293,7 +341,7 @@ class FrequentItemsetAlgorithm:
             getcontext().prec = 50
             mu_decimal = Decimal(mu)
             result = sum(
-                (mu_decimal**i) * Decimal(math.exp(-mu)) / _factorial(i)
+                (mu_decimal**i) * Decimal(exp(-mu)) / _factorial(i)
                 for i in range(k + 1)
             )
             return float(result)
@@ -359,7 +407,7 @@ class FrequentItemsetAlgorithm:
     # Algorithm 1
     def wPFI_Apriori(
         self,
-        data_file: str,
+        filename: str,
         max_length: int = -1,
         msup_ratio: float = 0.3,
         threshold: float = 0.6,
@@ -368,28 +416,32 @@ class FrequentItemsetAlgorithm:
     ):
         """
         Input:
-            data_file       str
-                the dataset name
-            msup_ratio      float
-                the ratio of minimum support in dataset
+        data_file       str
+            Dataset name or directory
+
+        msup_ratio      float
+            the ratio of minimum support in dataset
+
             threshold       float
                 the probabilistic frequent threshold
+
             scale_factor    float
                 the scale factor
-            algorithm       int{2, 3}
+
+            algorithm       int
+                Values: {2, 3}
+                Default: 3
                 indicate the generating and pruning algorithm to be used
 
         Functionality:
             find all frequent itemsets that satisfy the given the input conditions
 
         Output:
-            L   list[set[int]]
+            L   list[list[tuple[int, float]]]
                 list of the itemsets that are the result of the algorithm
         """
-        # start_time = perf_counter()
         print("Processing input data...")
-        self._read_data(data_file)
-        return
+        self._read_data(filename)
 
         if max_length != -1:
             self.T = self.T[:max_length]
@@ -401,6 +453,10 @@ class FrequentItemsetAlgorithm:
         self.t = threshold
         self.alpha = scale_factor
 
+        print(self._chernoff_bound({1, 3}))
+        return
+
+        start_time = perf_counter()
         L1, support = self._scan_find_size_1()
         CK = [{i} for i in support.keys()]
         L = [L1]
@@ -410,7 +466,7 @@ class FrequentItemsetAlgorithm:
         print("There are %d transactions in this dataset" % self.n)
         print("There are %d distinct items in this dataset" % len(self.I.keys()))
         print("-----------------------------------------------------------")
-        print("Dataset: ", data_file)
+        print("Dataset: ", filename)
         print("Algorithm: ", algorithm)
         print("Minimum support ratio: ", msup_ratio)
         print("Probabilistic frequent threshold: ", threshold)
@@ -443,7 +499,7 @@ class FrequentItemsetAlgorithm:
 
 test = FrequentItemsetAlgorithm()
 L = test.wPFI_Apriori(
-    data_file="./data/chess.dat", msup_ratio=0.4, threshold=0.6, algorithm=2
+    filename="./data/mushroom.dat", msup_ratio=0.2, threshold=0.6, algorithm=2
 )
 # print("Result:")
 # for i in L[-1]:
