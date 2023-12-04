@@ -106,7 +106,7 @@ public class wPFIItemset {
   public String toString() {
     StringBuilder r = new StringBuilder();
     for (wPFIItem attribute : items) {
-      r.append(attribute.toString());
+      r.append(attribute.getId());
       r.append(' ');
     }
     return r.toString();

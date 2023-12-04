@@ -3,6 +3,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
+
+import javax.swing.text.html.HTML.UnknownTag;
+
 import java.util.Random;
 // import java.util.Random.nextGaussian;
 
@@ -349,9 +352,83 @@ public class wPFIApriori {
     this.maxItemsetSize = length;
   }
 
+  public static void printTransactionJ(int j, UncertainDatabase db) {
+    wPFIItemset txJ = db.getTransactions().get(j);
+
+    for (wPFIItem item : txJ.getItems()) {
+      System.out.println(item.toString());
+    }
+  }
+
+  public static double probItemsetInjTrasaction(UncertainDatabase database, wPFIItemset itemset, int j) {
+    wPFIItemset transactionJ = database.getTransactions().get(j);
+
+    double prob = 0;
+    for (wPFIItem item : itemset.getItems()) {
+      for (wPFIItem itemTX : transactionJ.getItems()) {
+        if (itemTX.getId() > item.getId())
+          break;
+
+        if (itemTX.getId() == item.getId()) {
+          if (prob == 0)
+            prob = itemTX.getProbability();
+          else
+            prob *= itemTX.getProbability();
+
+          break;
+        }
+      }
+    }
+
+    return prob;
+  }
+
+  public static double probItemsetInTransaction(UncertainDatabase database, wPFIItemset itemset, int j) {
+    wPFIItemset transactionJ = database.getTransactions().get(j);
+
+    double prob = 0;
+    for (wPFIItem item : itemset.getItems()) {
+      for (wPFIItem itemTX : transactionJ.getItems()) {
+        if (itemTX.getId() > item.getId())
+          break;
+
+        if (itemTX.getId() == item.getId()) {
+          if (prob == 0)
+            prob = itemTX.getProbability();
+          else
+            prob *= itemTX.getProbability();
+          break;
+        }
+      }
+    }
+    return prob;
+  }
+
+  public static double frequentnessProbability(int i, int j, wPFIItemset itemset, UncertainDatabase database) {
+    if (i > j)
+      return 0.0;
+
+    if (i == 0)
+      return 1.0;
+
+    double prob = probItemsetInTransaction(database, itemset, j);
+    return frequentnessProbability(i - 1, j - 1, itemset, database) * prob
+        + frequentnessProbability(i, j - 1, itemset, database) * (1 - prob);
+    // return 0;
+  }
+
   public static void main(String[] args) throws IOException {
     UncertainDatabase db = new UncertainDatabase();
-    db.loadFile("../../data/chess_test.dat");
+    db.loadFile("../../data/chess.dat");
     // db.printDatabase();
+    // ;
+    for (wPFIItem item : db.getAllItems())
+      System.out.println(item.toString());
+
+    // wPFIItemset X = new wPFIItemset();
+    // X.addItem(new wPFIItem(3, 1.0));
+    // X.addItem(new wPFIItem(5, 0.3));
+
+    // System.out.println(frequentnessProbability(1, 4, X, db));
   }
 }

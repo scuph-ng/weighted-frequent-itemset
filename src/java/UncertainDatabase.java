@@ -71,7 +71,7 @@ public class UncertainDatabase {
     if (prob > 1)
       return 1;
 
-    if (prob < 0)
+    if (prob <= 0)
       return 0.1;
 
     return prob;
