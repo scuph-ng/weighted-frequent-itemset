@@ -454,7 +454,7 @@ class FrequentItemsetAlgorithm:
         self.alpha = scale_factor
 
         print(self._chernoff_bound({1, 3}))
-        return
+        # return
 
         start_time = perf_counter()
         L1, support = self._scan_find_size_1()
@@ -504,4 +504,3 @@ L = test.wPFI_Apriori(
 # print("Result:")
 # for i in L[-1]:
 #     print(i)
-

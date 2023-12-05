@@ -16,6 +16,7 @@ public class wPFIApriori2 {
   protected int minsup;
   protected int dbScanCount = 0;
   protected int candidateCount = 0;
+  protected int lastTransactionIndex;
 
   protected double t;
 
@@ -27,6 +28,7 @@ public class wPFIApriori2 {
   public wPFIApriori2(UncertainDatabase database) {
     this.db = database;
     this.allItems = database.getAllItems();
+    this.lastTransactionIndex = db.size() - 1;
   }
 
   public void runAlgorithm(double msup_ratio, double threshold, double scale_factor) {
@@ -74,19 +76,33 @@ public class wPFIApriori2 {
   }
 
   protected List<wPFIItemset> scanFindSize1() {
-    List<wPFIItemset> candidates = new ArrayList<wPFIItemset>();
+    List<wPFIItemset> new_candidates = new ArrayList<wPFIItemset>();
+    wPFIItemset itemset;
 
     for (wPFIItem item : db.getAllItems()) {
-      wPFIItemset itemset = new wPFIItemset();
+      itemset = new wPFIItemset();
       itemset.addItem(item);
 
-      double item_weight = this.weightTable.get(item.getId());
-      if (item_weight * frequentnessProbability(2, db.size() - 1, itemset) >= this.t)
-
-        candidates.add(itemset);
+      double candidate_weight = this.weightTable.get(item.getId());
+      if (candidate_weight * frequentnessProbability(this.minsup, this.lastTransactionIndex, itemset) >= this.t)
+        new_candidates.add(itemset);
     }
 
     return candidates;
+  }
+
+  protected List<wPFIItemset> scanFindSizeK(List<wPFIItemset> candidatesK) {
+    List<wPFIItemset> new_candidates = new ArrayList<wPFIItemset>();
+    wPFIItem itemset;
+
+    for (wPFIItemset candidate: candidatesK) {
+      double candidate_weight = itemsetWeight(candidate);
+
+      if (candidate_weight * frequentnessProbability(this.minsup, this.lastTransactionIndex, candidate))
+        new_candidates.add(candidate);
+    }
+
+    return new_candidates;
   }
 
   // protected void calCandidateSupport(Set<wPFIItemset> candidateK) {
