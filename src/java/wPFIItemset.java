@@ -1,17 +1,14 @@
-import java.text.DecimalFormat;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Objects;
-import java.util.List;
 import java.util.Set;
 
 /**
  * This class represents an itemset (a set of items)
- * as used by the WPFIApriori algorithm uncertain itemset mining.
+ * as used by the wPFIApriori algorithm for uncertain itemset mining.
  *
- * @see AlgoWPFIApriori
- * @see ItemWPFIApriori
- * @author Philippe Fournier-Viger
+ * @see UncertainDatabase
+ * @see wPFIItem
+ * @see wPFIApriori
+ * @author Nguyen Hoang Phuc (scuph-ng)
  */
 public class wPFIItemset {
   private Set<wPFIItem> items = new HashSet<wPFIItem>();
@@ -22,8 +19,8 @@ public class wPFIItemset {
 
   /**
    * Get the expected support of this itemset.
-   * 
-   * @return expected support value.
+   *
+   * @return a double
    */
   public double getExpectedSupport() {
     return expectedsupport;
@@ -31,58 +28,42 @@ public class wPFIItemset {
 
   /**
    * Set the expected support to a given value.
-   * 
-   * @param expectedsupport the value
+   *
+   * @param value the expected support of the itemset
    */
-  void setExpectedSupport(double expectedsupport) {
-    this.expectedsupport = expectedsupport;
+  void setExpectedSupport(double value) {
+    this.expectedsupport = value;
   }
 
   /**
-   * Get items from that itemset.
-   * 
-   * @return a list of integers (items).
+   * Get all items from the itemset.
+   *
+   * @return a set of items.
    */
   public Set<wPFIItem> getItems() {
     return items;
   }
 
   /**
-   * Get the item at at a given position in that itemset
-   *
-   * @param index the position
-   * @return the item (Integer)
-   *         public wPFIItem get(int index) {
-   *         return items.get(index);
-   *         }
-   */
-
-  /**
-   * Add an item to that itemset
+   * Add an item to the itemset
    * 
-   * @param value the item to be added
+   * @param item the item to be added
    */
-  void addItem(wPFIItem value) {
-    items.add(value);
+  void addItem(wPFIItem item) {
+    items.add(item);
   }
 
+  /**
+   * Remove all the items from the itemset.
+   */
   void clear() {
     items.clear();
   }
 
   /**
-   * Set the items in this itemsets.
-   * 
-   * @param items a list of items.
-   *              void setItems(List<wPFIItem> items) {
-   *              this.items = items;
-   *              }
-   */
-
-  /**
-   * Get the number of items in this itemset
-   * 
-   * @return the item count (int)
+   * Get the itemset size
+   *
+   * @return an int
    */
   public int size() {
     return items.size();
@@ -90,9 +71,9 @@ public class wPFIItemset {
 
   /**
    * Check if this itemset contains a given item.
-   * 
-   * @param item the item
-   * @return true, if yes, otherwise false.
+   *
+   * @param item the item to be checked
+   * @return true if yes, otherwise false.
    */
   public boolean contains(wPFIItem item) {
     return items.contains(item);
@@ -100,41 +81,22 @@ public class wPFIItemset {
 
   /**
    * Check if this itemset is equal to another one.
-   * 
+   *
    * @param itemset2 the other itemset
    * @return true if yes, otherwise false
    */
   public boolean isEqualTo(wPFIItemset itemset2) {
-    // if not the same size, they can't be equal!
     if (items.size() != itemset2.items.size()) {
       return false;
     }
-    // for each item
+
     for (wPFIItem validateItem : items) {
-      // check if it is contained in the other itemset
-      // if not they are not equal.
       if (!itemset2.contains(validateItem)) {
         return false;
       }
     }
-    // they are equal, then return true
+
     return true;
-  }
-
-  public int hashCode(wPFIItemset itemset2) {
-    return Objects.hashCode(items);
-  }
-
-  /**
-   * Get the expected support as a five decimals string
-   * 
-   * @return a string
-   */
-  public String getSupportAsString() {
-    DecimalFormat format = new DecimalFormat();
-    format.setMinimumFractionDigits(0);
-    format.setMaximumFractionDigits(5);
-    return format.format(expectedsupport);
   }
 
   /**
@@ -145,26 +107,31 @@ public class wPFIItemset {
   }
 
   /**
-   * Print the items in this itemset to System.out.
+   * Print the items with its probability in this itemset to System.out.
    */
-  public void printWithoutSupport() {
-    StringBuilder r = new StringBuilder();
-    for (wPFIItem attribute : items) {
-      r.append(attribute.getId());
-      r.append(' ');
-    }
-    System.out.print(r);
+  public void printWithProbability() {
+    System.out.println(toStringWithSupport());
   }
 
   /**
    * Get a string representation of the items in this itemset.
    */
   public String toString() {
-    StringBuilder r = new StringBuilder();
-    for (wPFIItem attribute : items) {
-      r.append(attribute.getId());
-      r.append(' ');
-    }
-    return r.toString();
+    String str = "";
+    for (wPFIItem item : items)
+      str += item.getId() + " ";
+
+    return str;
+  }
+
+  /**
+   * Get a string representation of the items with its probability.
+   */
+  public String toStringWithSupport() {
+    String str = "";
+    for (wPFIItem item : items)
+      str += "(" + item.getId() + ", " + item.getProbability() + ") ";
+
+    return str;
   }
 }

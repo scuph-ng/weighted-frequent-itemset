@@ -10,26 +10,26 @@ import java.util.Set;
 import java.util.Random;
 
 /**
- * This class represents a transactions database with existential probabilities,
- * as used by the WPFIApriori algorithm uncertain itemset mining.
- * 
- * @see AlgoWPFIApriori
- * @see UncertainTransactionDatabase
- * @see ItemsetWPFIApriori
- * @see ItemWPFIApriori
- * @author Philippe Fournier-Viger
+ * This class represents an uncertain database with existential probabilities,
+ * as used by the wPFIApriori algorithm for uncertain itemset mining.
+ *
+ * @see wPFIApriori
+ * @see wPFIItemset
+ * @see wPFIItem
+ * @author Nguyen Hoang Phuc (scuph-ng)
  */
 public class UncertainDatabase {
-
-  // this is the set of items in the database
+  /**
+   * Define the list of transactions and the set of items that exist in the
+   * database.
+   */
   private final Set<wPFIItem> allItems = new HashSet<wPFIItem>();
-  // this is the list of transactions in the database
   private final List<wPFIItemset> transactions = new ArrayList<wPFIItemset>();
 
   /**
-   * Get the number of transactions.
-   * 
-   * @return a int
+   * Get the database size.
+   *
+   * @return int
    */
   public int size() {
     return transactions.size();
@@ -37,7 +37,7 @@ public class UncertainDatabase {
 
   /**
    * Get the list of transactions.
-   * 
+   *
    * @return the list of Transactions.
    */
   public List<wPFIItemset> getTransactions() {
@@ -46,8 +46,8 @@ public class UncertainDatabase {
 
   /**
    * Get the set of items in this database.
-   * 
-   * @return a Set of Integers
+   *
+   * @return a Set of Items
    */
   public Set<wPFIItem> getAllItems() {
     return allItems;
@@ -55,8 +55,8 @@ public class UncertainDatabase {
 
   /**
    * Load a transaction database from a file.
-   * 
-   * @param path the path of the file
+   *
+   * @param path the directory of the file
    * @throws IOException exception if error while reading the file.
    */
   public void loadFile(String path) throws IOException {
@@ -86,6 +86,12 @@ public class UncertainDatabase {
     }
   }
 
+  /**
+   * Process a transaction from a list of items, then add it to the
+   * transaction list.
+   *
+   * @param itemsString the list of items
+   */
   private void processTransactions(String itemsString[]) {
     wPFIItemset transaction = new wPFIItemset();
 
@@ -118,6 +124,11 @@ public class UncertainDatabase {
     }
   }
 
+  /**
+   * Generate a random probability drawn from the Gaussian distribution.
+   * Means is 0.5.
+   * Variance is 0.125.
+   */
   private static double gaussianDistribution() {
     Random random = new Random();
     double prob = random.nextGaussian() * Math.sqrt(0.125) + 0.5;
@@ -132,5 +143,4 @@ public class UncertainDatabase {
 
     return prob;
   }
-
 }
