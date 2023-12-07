@@ -1,2 +1,4 @@
 *.class
+*test*
 src/python/__pycache__
+data/*.py
