@@ -8,9 +8,7 @@
  * @author Philippe Fournier-Viger
  */
 public class wPFIItem {
-  // the item id
   private final int id;
-  // the probability associated to that item
   private final double probability;
 
   /**
@@ -33,13 +31,8 @@ public class wPFIItem {
     return id;
   }
 
-  /**
-   * Get a string representation of this item.
-   * 
-   * @return a string
-   */
-  public String toString() {
-    return "" + getId() + " (" + probability + ")";
+  public double getProbability() {
+    return probability;
   }
 
   /**
@@ -69,11 +62,11 @@ public class wPFIItem {
   }
 
   /**
-   * Get the existential probability associated to this item
+   * Get a string representation of this item.
    * 
-   * @return the probability as a double
+   * @return a string
    */
-  public double getProbability() {
-    return probability;
+  public String toString() {
+    return "" + getId() + " (" + probability + ")";
   }
 }

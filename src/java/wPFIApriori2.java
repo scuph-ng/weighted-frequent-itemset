@@ -1,11 +1,10 @@
 import java.io.IOException;
-import java.util.Collections;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Random;
 import java.util.List;
 import java.util.Set;
-import java.util.Random;
 
 public class wPFIApriori2 {
   protected UncertainDatabase db;
@@ -15,7 +14,6 @@ public class wPFIApriori2 {
   protected int k;
   protected int minsup;
   protected int dbScanCount = 0;
-  protected int candidateCount = 0;
   protected int lastTransactionIndex;
 
   protected double t;
@@ -23,36 +21,41 @@ public class wPFIApriori2 {
   protected long startTime;
   protected long endTime;
 
-  private int itemsetCount;
-
   public wPFIApriori2(UncertainDatabase database) {
-    this.db = database;
-    this.allItems = database.getAllItems();
-    this.lastTransactionIndex = db.size() - 1;
+    db = database;
+    allItems = database.getAllItems();
+    lastTransactionIndex = db.size() - 1;
   }
 
   public void runAlgorithm(double msup_ratio, double threshold, double scale_factor) {
-    this.startTime = System.currentTimeMillis();
-    this.candidateCount = 0;
-    this.itemsetCount = 0;
-    this.dbScanCount = 0;
+    startTime = System.currentTimeMillis();
+    dbScanCount = 0;
+    k = 1;
 
-    this.t = threshold;
-    this.minsup = (int) msup_ratio * db.size();
-
-    this.k = 1;
+    t = threshold;
+    minsup = (int) msup_ratio * db.size();
 
     List<List<wPFIItemset>> wPFI = new ArrayList<List<wPFIItemset>>();
-    Set<wPFIItem> I = db.getAllItems();
 
-    this.weightTable = generateWeightTable(db);
+    // TODO: create a method to define whether
+    // generate a weightable is necessary or not
+    weightTable = generateWeightTable(db);
 
-    List<wPFIItemset> wPFI_1 = scanFindSize1();
-    wPFI.add(wPFI_1);
+    List<wPFIItemset> wPFI_k = scanFindSize1();
 
-    // while (true) {
-    // List<wPFIItemset> candidateK;
-    // }
+    wPFI.add(wPFI_k);
+
+    while (wPFI_k.size() != 0) {
+      System.out.printf("There are %d candidates size %d", wPFI_k.size(), k);
+      System.out.println();
+
+      List<wPFIItemset> candidateK = wPFIAprioriGenerate(wPFI.get(k - 1));
+      wPFI_k = scanFindSizeK(candidateK);
+      wPFI.add(wPFI_k);
+      k++;
+    }
+
+    // System.out.println(wPFI.get(k - 2).get(0).toString());
   }
 
   private static double gaussianDistribution() {
@@ -77,170 +80,185 @@ public class wPFIApriori2 {
 
   protected List<wPFIItemset> scanFindSize1() {
     List<wPFIItemset> new_candidates = new ArrayList<wPFIItemset>();
-    wPFIItemset itemset;
 
     for (wPFIItem item : db.getAllItems()) {
-      itemset = new wPFIItemset();
-      itemset.addItem(item);
+      wPFIItemset candidate = new wPFIItemset();
+      candidate.addItem(item);
 
-      double candidate_weight = this.weightTable.get(item.getId());
-      if (candidate_weight * frequentnessProbability(this.minsup, this.lastTransactionIndex, itemset) >= this.t)
-        new_candidates.add(itemset);
-    }
+      double candidate_weight = weightTable.get(item.getId());
+      double candidate_confidence = frequentnessProbability(minsup, db.size(), candidate);
 
-    return candidates;
-  }
+      // System.out.print(itemset.toString());
+      // System.out.printf("\t%2f\t", candidate_weight);
+      // System.out.println(candidate_confidence);
 
-  protected List<wPFIItemset> scanFindSizeK(List<wPFIItemset> candidatesK) {
-    List<wPFIItemset> new_candidates = new ArrayList<wPFIItemset>();
-    wPFIItem itemset;
+      if (candidate_confidence * candidate_weight < t)
+        continue;
 
-    for (wPFIItemset candidate: candidatesK) {
-      double candidate_weight = itemsetWeight(candidate);
-
-      if (candidate_weight * frequentnessProbability(this.minsup, this.lastTransactionIndex, candidate))
+      if (verifyCandidate(new_candidates, candidate))
         new_candidates.add(candidate);
     }
 
     return new_candidates;
   }
 
-  // protected void calCandidateSupport(Set<wPFIItemset> candidateK) {
-  // this.dbScanCount += 1;
-  //
-  // for (wPFIItemset transaction : this.db.getTransactions()) {
-  // candidateLoop: for (wPFIItemset candidate : candidateK) {
-  // double expectedSupport = 0;
-  //
-  // for (wPFIItem item : candidate.getItems()) {
-  // boolean found = false;
-  //
-  // for (wPFIItem itemTX : transaction.getItems()) {
-  // if (itemTX.getId() < item.getId())
-  // break;
-  //
-  // if (itemTX.getId() == item.getId()) {
-  // found = true;
-  //
-  // if (expectedSupport == 0)
-  // expectedSupport = itemTX.getProbability();
-  // else
-  // expectedSupport *= itemTX.getProbability();
-  //
-  // break;
-  // }
-  // }
-  //
-  // if (!found)
-  // continue candidateLoop;
-  // }
-  //
-  // candidate.increaseSupportBy(expectedSupport);
-  // }
-  // }
-  // }
+  protected List<wPFIItemset> scanFindSizeK(List<wPFIItemset> wPFI_k) {
+    List<wPFIItemset> new_candidates = new ArrayList<wPFIItemset>();
 
-  private double probItemsetInTransaction(wPFIItemset itemset, int j) {
-    wPFIItemset transactionJ = this.db.getTransactions().get(j);
+    for (wPFIItemset candidate : wPFI_k) {
+      double candidate_weight = itemsetWeight(candidate);
+      double candidate_confidence = frequentnessProbability(minsup, db.size(), candidate);
 
-    double prob = 0;
+      // System.out.print(candidate.toString());
+      // System.out.printf("\t%2f\t", candidate_weight);
+      // System.out.println(candidate_confidence);
+
+      if (candidate_confidence * candidate_weight >= t)
+        new_candidates.add(candidate);
+    }
+
+    return new_candidates;
+  }
+
+  private boolean verifyCandidate(List<wPFIItemset> candidates, wPFIItemset candidate) {
+    for (wPFIItemset validator : candidates) {
+      if (validator.isEqualTo(candidate))
+        return false;
+    }
+    return true;
+  }
+
+  private double probItemsetInTransaction(int j, wPFIItemset itemset) {
+    wPFIItemset transactionJ = db.getTransactions().get(j - 1);
+
+    if (itemset.size() > transactionJ.size())
+      return 0;
+
+    double prob = 1;
+
     for (wPFIItem item : itemset.getItems()) {
-      for (wPFIItem itemTX : transactionJ.getItems()) {
-        if (itemTX.getId() > item.getId())
-          break;
+      boolean found = false;
 
-        if (itemTX.getId() == item.getId()) {
-          if (prob == 0)
-            prob = itemTX.getProbability();
-          else
-            prob *= itemTX.getProbability();
+      for (wPFIItem itemTX : transactionJ.getItems()) {
+        if (itemTX.equals(item)) {
+          found = true;
+          prob *= itemTX.getProbability();
           break;
         }
       }
-    }
 
+      if (!found)
+        return 0;
+    }
     return prob;
   }
 
   protected double frequentnessProbability(int i, int j, wPFIItemset itemset) {
-    if (i > j)
-      return 0;
-
     if (i == 0)
       return 1;
 
-    double prob = probItemsetInTransaction(itemset, j);
-    return frequentnessProbability(i - 1, j - 1, itemset) * prob
-        + frequentnessProbability(i, j - 1, itemset) * (1 - prob);
+    if (j == 0)
+      return 0;
+
+    double prob = probItemsetInTransaction(j, itemset);
+
+    double firstProb = frequentnessProbability(i - 1, j - 1, itemset) * prob;
+    double secondProb = frequentnessProbability(i, j - 1, itemset) * (1 - prob);
+
+    return firstProb + secondProb;
   }
 
-  private double itemsetWeight(wPFIItemset itemset, wPFIItem iItem) {
-    double meansWeight = iItem.getProbability();
+  private double itemsetWeight(wPFIItemset itemset) {
+    double sumWeight = 0;
 
     for (wPFIItem item : itemset.getItems()) {
-      meansWeight += this.weightTable.get(item.getId());
+      sumWeight += weightTable.get(item.getId());
     }
 
-    meansWeight /= itemset.size() + 1.0;
-
-    return meansWeight;
+    return sumWeight /= itemset.size();
   }
 
-  private wPFIItem minWeightItemset(wPFIItemset itemset) {
+  private double minWeightItemset(wPFIItemset itemset) {
     double minWeight = 1.1;
     double w;
 
-    wPFIItem argmin = null;
+    // wPFIItem argmin = new wPFIItem(-1, 0);
 
     for (wPFIItem item : itemset.getItems()) {
-      w = this.weightTable.get(item.getId());
+      w = weightTable.get(item.getId());
       if (w < minWeight) {
         minWeight = w;
-        argmin = item;
+        // argmin = item;
       }
     }
 
-    return argmin;
+    return minWeight;
   }
 
-  protected List<wPFIItemset> wPFIAprioriGenerate(List<wPFIItemset> candidateK_1) {
+  // Algorithm 2
+  // TODO: implement algorithm 2
+  protected List<wPFIItemset> wPFIAprioriGenerate(List<wPFIItemset> wPFI_K_1) {
     List<wPFIItemset> candidateK = new ArrayList<wPFIItemset>();
-
     Set<wPFIItem> I_ = new HashSet<wPFIItem>();
 
-    for (wPFIItemset candidate : candidateK_1) {
+    for (wPFIItemset candidate : wPFI_K_1) {
       I_.addAll(candidate.getItems());
     }
 
-    Set<wPFIItem> differentSet;
-    wPFIItemset tempCandidate;
-    wPFIItem minI;
+    Set<wPFIItem> differentSet = I_;
+    // wPFIItemset tempCandidate;
+    // wPFIItem minI;
+    double argmin;
 
-    for (wPFIItemset candidate : candidateK_1) {
-      differentSet = new HashSet<>(I_);
+    for (wPFIItemset candidate : wPFI_K_1) {
+      System.out.println(I_.size());
+      differentSet.addAll(I_);
       differentSet.removeAll(candidate.getItems());
 
+      // System.out.print(candidate.size() + "\t");
+      // System.out.println(differentSet.size());
+
       for (wPFIItem item : differentSet) {
-        if (itemsetWeight(candidate, item) >= this.t) {
-          tempCandidate = candidate;
-          tempCandidate.addItem(item);
-          candidateK.add(tempCandidate);
-        }
+        wPFIItemset tempCandidate = candidate;
+        tempCandidate.addItem(item);
+
+        if (itemsetWeight(tempCandidate) < t)
+          continue;
+
+        // if (verifyCandidate(candidateK, tempCandidate))
+        // continue;
+
+        candidateK.add(tempCandidate);
       }
 
-      minI = minWeightItemset(candidate);
+      // argmin = minWeightItemset(candidate);
+      //
+      // differentSet = allItems;
+      // differentSet.removeAll(I_);
+      // // differentSet.removeAll(candidate.getItems());
+      //
+      // for (wPFIItem item : differentSet) {
+      // tempCandidate = candidate;
+      // tempCandidate.addItem(item);
+      //
+      // if (itemsetWeight(tempCandidate) < t)
+      // continue;
+      // if (weightTable.get(item.getId()) >= argmin)
+      // continue;
+      // if (verifyCandidate(candidateK, tempCandidate))
+      // continue;
+      //
+      // candidateK.add(tempCandidate);
+      // }
     }
 
-    if (candidateK.size() == 0)
-      return null;
-    else
-      return candidateK;
+    return candidateK;
   }
 
   public static void main(String[] args) throws IOException {
     UncertainDatabase database = new UncertainDatabase();
-    database.loadFile("../../data/chess.dat");
+    database.loadFile("../../data/connect.dat");
     wPFIApriori2 test = new wPFIApriori2(database);
-    test.runAlgorithm(0.2, 0.1, 0.6);
+    test.runAlgorithm(0.2, 0.6, 0.6);
   }
 }
