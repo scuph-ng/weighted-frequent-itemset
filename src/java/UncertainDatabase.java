@@ -23,6 +23,7 @@ public class UncertainDatabase {
    * Define the list of transactions and the set of items that exist in the
    * database.
    */
+  private final String file_name = new String();
   private final Set<wPFIItem> allItems = new HashSet<wPFIItem>();
   private final List<wPFIItemset> transactions = new ArrayList<wPFIItemset>();
 
@@ -60,6 +61,7 @@ public class UncertainDatabase {
    * @throws IOException exception if error while reading the file.
    */
   public void loadFile(String path) throws IOException {
+    file_name.concat(path);
     String thisLine;
     BufferedReader myInput = null;
 
@@ -111,8 +113,7 @@ public class UncertainDatabase {
    * Print this database to System.out.
    */
   public void printDatabase() {
-    System.out
-        .println("===================  UNCERTAIN DATABASE ===================");
+    System.out.println("===================  UNCERTAIN DATABASE ===================");
     int count = 0;
     // for each transaction
     for (wPFIItemset itemset : transactions) {
@@ -122,6 +123,16 @@ public class UncertainDatabase {
       System.out.println("");
       count++;
     }
+  }
+
+  /**
+   * Print this database to System.out.
+   */
+  public void printDatabaseProperties() {
+    System.out.println("=================== DATABASE PROPERTIES ===================");
+    System.out.println("File path: " + file_name);
+    System.out.println("Database size: " + transactions.size());
+    System.out.println("Distinct items: " + allItems.size());
   }
 
   /**
