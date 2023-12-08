@@ -41,6 +41,7 @@ public class wPFIApriori {
    */
   public wPFIApriori(UncertainDatabase database) {
     db = database;
+    database.printDatabaseProperties();
     /**
      * Assign the properties of the database.
      */
@@ -70,6 +71,7 @@ public class wPFIApriori {
      */
     weightTable = generateWeightTable();
 
+    System.out.println("===========================================================");
     /**
      * Scan and find the size-1 probabilistic frequent itemset.
      */
@@ -88,17 +90,6 @@ public class wPFIApriori {
       wPFI.add(wPFI_k);
       k++;
     }
-  }
-
-  /**
-   * TODO:decide whether this method is necessary.
-   */
-  private static double gaussianDistribution() {
-    Random random = new Random();
-    double prob = random.nextGaussian() * Math.sqrt(0.125) + 0.5;
-
-    prob = (Double) Math.ceil(prob * 10) / 10.0;
-    return prob;
   }
 
   /**
@@ -138,7 +129,7 @@ public class wPFIApriori {
         continue;
 
       // if (verifyCandidate(new_candidates, candidate))
-      // new_candidates.add(candidate);
+      new_candidates.add(candidate);
     }
 
     return new_candidates;
@@ -301,14 +292,15 @@ public class wPFIApriori {
       I_.addAll(candidate.getItems());
     }
 
-    Set<wPFIItem> differentSet = new HashSet<wPFIItem>();
+    // Set<wPFIItem> differentSet = new HashSet<wPFIItem>();
     // wPFIItemset tempCandidate;
     // wPFIItem minI;
     double argmin;
 
     for (wPFIItemset candidate : wPFI_K_1) {
       // System.out.println(I_.size());
-      differentSet.addAll(I_);
+      // differentSet.addAll(I_);
+      Set<wPFIItem> differentSet = new HashSet<wPFIItem>(I_);
       differentSet.removeAll(candidate.getItems());
 
       // System.out.print(candidate.size() + "\t");
@@ -353,7 +345,7 @@ public class wPFIApriori {
 
   public static void main(String[] args) throws IOException {
     UncertainDatabase database = new UncertainDatabase();
-    database.loadFile("../../data/connect.dat");
+    database.loadFile("./../../data/connect.dat");
     wPFIApriori test = new wPFIApriori(database);
     test.runAlgorithm(0.2, 0.6, 0.6);
   }
