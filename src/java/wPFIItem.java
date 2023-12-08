@@ -1,23 +1,21 @@
 /**
- * This class represents an item from a transaction database
- * as used by the WPFIApriori algorithm uncertain itemset mining.
+ * This class represents an item from an uncertain database
+ * as used by the wPFIApriori algorithm for uncertain itemset mining.
  * 
- * @see AlgoWPFIApriori
- * @see UncertainTransactionDatabase
- * @see ItemsetWPFIApriori
- * @author Philippe Fournier-Viger
+ * @see UncertainDatabase
+ * @see wPFIApriori
+ * @see wPFIItemset
+ * @author Nguyen Hoang Phuc (scuph-ng)
  */
 public class wPFIItem {
-  // the item id
   private final int id;
-  // the probability associated to that item
   private final double probability;
 
   /**
    * Constructor
-   * 
-   * @param id          id ot the item
-   * @param probability the existential proability
+   *
+   * @param id          id of the item
+   * @param probability the existential probability
    */
   public wPFIItem(int id, double probability) {
     this.id = id;
@@ -34,34 +32,32 @@ public class wPFIItem {
   }
 
   /**
-   * Get a string representation of this item.
-   * 
-   * @return a string
+   * Get the existential probability of the item.
+   *
+   * @return a double
    */
-  public String toString() {
-    return "" + getId() + " (" + probability + ")";
+  public double getProbability() {
+    return probability;
   }
 
   /**
    * Check if this item is equal to another.
-   * 
+   *
    * @param object another item
    * @return true if equal, otherwise false.
    */
   public boolean equals(Object object) {
     wPFIItem item = (wPFIItem) object;
-    // if the same id, then true
     if ((item.getId() == this.getId())) {
       return true;
     }
-    // if not the same id, then false
     return false;
   }
 
   /**
-   * Generate an hash code for that item.
-   * 
-   * @return an hash code as a int.
+   * Generate a hash code for the item.
+   *
+   * @return a hash code as a int.
    */
   public int hashCode() {
     String string = "" + getId();
@@ -69,11 +65,11 @@ public class wPFIItem {
   }
 
   /**
-   * Get the existential probability associated to this item
+   * Get a string representation of this item.
    * 
-   * @return the probability as a double
+   * @return a string
    */
-  public double getProbability() {
-    return probability;
+  public String toString() {
+    return "" + getId() + " (" + probability + ")";
   }
 }

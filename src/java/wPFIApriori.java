@@ -1,434 +1,510 @@
-import java.io.BufferedWriter;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Random;
+import java.util.List;
 import java.util.Set;
 
-import javax.swing.text.html.HTML.UnknownTag;
-
-import java.util.Random;
-// import java.util.Random.nextGaussian;
-
 /**
- * This is an implementation of the U-Apriori algorithm as described by :<br/>
- * <br/>
- * 
- * Chui, C., Kao, B., Hung, E. (2007), Mining Frequent Itemsets fomr Uncertain
- * Data, PAKDD 2007, pp 47-58.
- * 
- * @see ItemWPFIApriori
- * @see UncertainTransactionDatabase
- * @see ItemsetWPFIApriori
- * @see ItemsetsWPFIAprior
- * @author Philippe Fournier-Viger
+ * This class represent the frequent itemset mining algorithm in uncertain
+ * datasets.
+ *
+ * @see UncertainDatabase
+ * @see wPFIItemset
+ * @see wPFIItem
+ *
+ * @author Nguyen Hoang Phuc (scuph-ng)
  */
 public class wPFIApriori {
-
-  /** this is the database */
-  protected UncertainDatabase database;
-
   /**
-   * variable indicating the current level for the Apriori generation
-   * // (itemsets of size k)
+   * Define the neccesary variables for the algorithm
    */
+  protected UncertainDatabase db;
+  protected Set<wPFIItem> allItems;
+  protected HashMap<Integer, Double> weightTable;
+
   protected int k;
+  protected int minsup;
+  // protected int dbScanCount = 0;
+  protected int lastTransactionIndex;
 
-  /** number of candidates generated */
-  protected int totalCandidateCount = 0;
+  protected double t;
 
-  /** number of database scan */
-  protected int databaseScanCount = 0;
-
-  /** start time of latest execution */
-  protected long startTimestamp;
-
-  /** end time of latest execution */
-  protected long endTimestamp;
-
-  /** the number of itemsets found */
-  private int itemsetCount;
-
-  /** write to file */
-  BufferedWriter writer = null;
-
-  /** Special parameter to set the maximum size of itemsets to be discovered */
-  int maxItemsetSize = Integer.MAX_VALUE;
+  protected long startTime;
+  protected long endTime;
 
   /**
    * Constructor
-   * 
-   * @param database the database for applying this algorithm
+   *
+   * @param database the loaded database
    */
   public wPFIApriori(UncertainDatabase database) {
-    this.database = database;
+    db = database;
+    database.printDatabaseProperties();
+    /**
+     * Assign the properties of the database.
+     */
+    allItems = database.getAllItems();
+    lastTransactionIndex = db.size() - 1;
   }
 
   /**
-   * Run this algorithm
-   * 
-   * @param minsupp a minimum support threshold
-   * @param output  the output file path for writing the result
-   * @throws IOException exception if error reading/writing files
+   * The algorithm 1 from the research paper.
+   *
+   * @param msup_ratio   the ratio of minsup in the database
+   * @param threshold    the probabilistic frequent threshold
+   * @param scale_factor the scale factor
    */
-  public void runAlgorithm(float minsupp, float threshold, String output) throws IOException {
-    // record start time
-    startTimestamp = System.currentTimeMillis();
-    // reset variables for statistics
-    totalCandidateCount = 0;
-    databaseScanCount = 0;
-    itemsetCount = 0;
+  public void runAlgorithm(double msup_ratio, double threshold, double scale_factor) {
+    startTime = System.currentTimeMillis();
 
-    // prepare the output file
-    writer = new BufferedWriter(new FileWriter(output));
-
-    // Generate candidates with size k = 1 (all itemsets of size 1)
     k = 1;
-    Set<wPFIItemset> candidatesSize1 = scanFindSize1();
+    t = threshold;
+    minsup = (int) msup_ratio * db.size();
 
-    // increase the number of candidates generated
-    totalCandidateCount += candidatesSize1.size();
+    List<List<wPFIItemset>> wPFI = new ArrayList<List<wPFIItemset>>();
 
-    // calculate the support of each candidate of size 1
-    // by scanning the database
-    calCandidateSupport(candidatesSize1);
+    /**
+     * TODO: create a method to define whether
+     * generate a weight table is necessary or not.
+     */
+    weightTable = generateWeightTable();
 
-    // To build level 1, we keep only the frequent candidates.
-    // We scan the database one time to calculate the support of each candidate.
-    Set<wPFIItemset> level = createLevel(minsupp,
-        candidatesSize1);
+    System.out.println("===========================================================");
+    /**
+     * Scan and find the size-1 probabilistic frequent itemset.
+     */
+    List<wPFIItemset> wPFI_k = scanFindSize1();
+    wPFI.add(wPFI_k);
 
-    // Now this is the recursive step
-    // itemsets of size k will be generated recursively starting from k=2
-    // by using itemsets of size k-1 until no candidates
-    // can be generated
-    k = 2;
-    // While the level is not empty
-    while (!level.isEmpty() && k <= maxItemsetSize) {
-      // Generate candidates of size K
-      Set<wPFIItemset> candidatesK = scanFindSizeK(level);
-      // increase the candidate count
-      totalCandidateCount += candidatesK.size();
+    // for (List<wPFIItemset> i : wPFI) {
+    //   System.out.println(i);
+    // }
+    // for (wPFIItemset i : wPFI_k) {
+    //   System.out.println(i);
+    // }
 
-      // We scan the database one time to calculate the support
-      // of each candidates.
-      calCandidateSupport(candidatesK);
+    /**
+     * Use while iteration to find the wPFI until no more new wPFI is found.
+     */
+    while (wPFI_k.size() != 0) {
+      System.out.printf("There are %d candidates size %d", wPFI_k.size(), k);
+      System.out.println();
 
-      // We build the level k+1 with all the candidates that have
-      // a support higher than the minsup threshold.
-      Set<wPFIItemset> levelK = createLevel(
-          minsupp, candidatesK);
-      level = levelK; // We keep only the last level...
+      List<wPFIItemset> candidateK = wPFIApriori3(wPFI.get(k - 1));
+      wPFI_k = scanFindSizeK(candidateK);
+      wPFI.add(wPFI_k);
       k++;
+      // System.out.println(wPFI_k.size());
     }
-    // close the output file
-    writer.close();
-    // record end time
-    endTimestamp = System.currentTimeMillis();
   }
 
   /**
-   * Save an itemset to the output file.
-   * 
-   * @param itemset the itemset
-   * @throws IOException exception if error writing the itemset to the file
+   * Generate a weight table for each item in the database.
    */
-  private void saveItemsetToFile(wPFIItemset itemset) throws IOException {
-    writer.write(itemset.toString() + " #SUP: " + itemset.getExpectedSupport());
-    writer.newLine();
-    itemsetCount++;
+  private HashMap<Integer, Double> generateWeightTable() {
+    HashMap<Integer, Double> weightTable = new HashMap<Integer, Double>();
+    Random random = new Random();
+
+    for (wPFIItem item : allItems) {
+      weightTable.put(item.getId(), random.nextDouble());
+    }
+
+    return weightTable;
   }
 
   /**
-   * Take a set of candidates and compare them with the min expected support to
-   * keep
-   * only the itemset meeting that minimum threshold.
-   * 
-   * @param minsupp     the minimum expected threshold
-   * @param candidatesK a set of itemsets of size k
-   * @return the set of frequent itemsets of size k
-   * @throws IOException exception if error writing output file
+   * Scan and find the size-1 probabilistic frequent itemsets.
+   *
+   * @return a list of itemset that satisfied the condition
    */
-  protected Set<wPFIItemset> createLevel(double minsupp, Set<wPFIItemset> candidatesK)
-      throws IOException {
-    Set<wPFIItemset> levelK = new HashSet<wPFIItemset>();
-    // for each itemset
-    for (wPFIItemset candidate : candidatesK) {
-      // check if it has enough support
-      if (candidate.getExpectedSupport() >= minsupp && maxItemsetSize >= 1) {
-        // if yes add it to the set of frequent itemset of size k
-        levelK.add(candidate);
-        // save the itemset to the output file
-        saveItemsetToFile(candidate);
+  protected List<wPFIItemset> scanFindSize1() {
+    List<wPFIItemset> new_candidates = new ArrayList<wPFIItemset>();
+
+    for (wPFIItem item : db.getAllItems()) {
+      wPFIItemset candidate = new wPFIItemset();
+      candidate.addItem(item);
+
+      double candidate_weight = weightTable.get(item.getId());
+      double candidate_confidence = frequentnessProbability(minsup, db.size(), candidate);
+
+      // System.out.print(itemset.toString());
+      // System.out.printf("\t%2f\t", candidate_weight);
+      // System.out.println(candidate_confidence);
+
+      if (candidate_confidence * candidate_weight < t)
+        continue;
+
+      // if (verifyCandidate(new_candidates, candidate))
+      new_candidates.add(candidate);
+    }
+
+    return new_candidates;
+  }
+
+  /**
+   * Scan and find the size-k probabilistic frequent itemsets.
+   *
+   * @param wPFI_k list of the size-k candidate itemsets
+   * @return a list of the itemset that satisfied the condition
+   */
+  protected List<wPFIItemset> scanFindSizeK(List<wPFIItemset> wPFI_k) {
+    List<wPFIItemset> new_candidates = new ArrayList<wPFIItemset>();
+
+    for (wPFIItemset candidate : wPFI_k) {
+      double candidate_weight = itemsetWeight(candidate);
+      double candidate_confidence = frequentnessProbability(minsup, db.size(), candidate);
+      // System.out.print(candidate.toString());
+      // System.out.printf("\t%2f\t", candidate_weight);
+      // System.out.println(candidate_confidence);
+
+      if (candidate_confidence * candidate_weight >= t) {
+        new_candidates.add(candidate);
       }
     }
-    // return frequent k-itemsets
-    return levelK;
+
+    return new_candidates;
   }
 
   /**
-   * Calculate the support of a set of candidates by scanning the database.
-   * 
-   * @param candidatesK a set of candidates of size k
+   * TODO: decide whether this method is necessary.
    */
-  protected void calCandidateSupport(
-      Set<wPFIItemset> candidatesK) {
-    // increase database scan count
-    databaseScanCount++;
-    // for each transaction
-    for (wPFIItemset transaction : database.getTransactions()) {
-      // For each candidate of level K, we increase its support
-      // if it is included in the transaction.
-
-      // for each candidate
-      candidateLoop: for (wPFIItemset candidate : candidatesK) {
-
-        // initialize the expected support to 0
-        double expectedSupport = 0;
-
-        // for each item in candidate we will try to find it
-        for (wPFIItem item : candidate.getItems()) {
-          boolean found = false;
-
-          // for each item in the transaction
-          for (wPFIItem itemT : transaction.getItems()) {
-
-            // if we found the item
-            if (item.getId() == itemT.getId()) {
-              found = true;
-              // update the expected support
-              if (expectedSupport == 0) {
-                expectedSupport = itemT.getProbability();
-              } else {
-                expectedSupport *= itemT.getProbability();
-              }
-              break;
-            }
-            // if the lexical order is not respected then it is impossible
-            // that this item will be in this transaction so
-            // we stop searching for that item
-            else if (item.getId() < itemT.getId()) {
-              break;
-            }
-          }
-          // if the last item that we searched was not found
-          // then the full itemset is not here, so we stop
-          if (found == false) {
-            continue candidateLoop;
-          }
-        }
-        // If the candidate itemset was completely found,
-        // we increase the support of the candidate its calculated
-        // expected support.
-        candidate.increaseSupportBy(expectedSupport);
-      }
-    }
-  }
-
-  /**
-   * Generate candidate itemsets containing a single item.
-   * 
-   * @return a set of candidate itemsets
-   */
-  protected Set<wPFIItemset> scanFindSize1() {
-    // create the set of candidates as empty
-    Set<wPFIItemset> candidates = new HashSet<wPFIItemset>();
-    // for each item
-    for (wPFIItem item : database.getAllItems()) {
-      // simply add it to the set of candidates
-      wPFIItemset itemset = new wPFIItemset();
-      itemset.addItem(item);
-      candidates.add(itemset);
-    }
-    return candidates;
-  }
-
-  /**
-   * Generate candidate itemsets of size K by using HWTUIs of size k-1
-   * 
-   * @param levelK_1 itemsets of size k-1
-   * @return candidates of size K
-   */
-  protected Set<wPFIItemset> scanFindSizeK(Set<wPFIItemset> levelK_1) {
-    // a set to store candidates
-    Set<wPFIItemset> candidates = new HashSet<wPFIItemset>();
-
-    // For each itemset I1 and I2 of level k-1
-    Object[] itemsets = levelK_1.toArray();
-    for (int i = 0; i < levelK_1.size(); i++) {
-      wPFIItemset itemset1 = (wPFIItemset) itemsets[i];
-      for (int j = 0; j < levelK_1.size(); j++) {
-        wPFIItemset itemset2 = (wPFIItemset) itemsets[j];
-
-        // If I1 is smaller than I2 according to lexical order and
-        // they share all the same items except the last one.
-        wPFIItem missing = itemset1.allTheSameExceptLastItem(itemset2);
-        if (missing != null) {
-          // Then, create a new candidate by combining itemset1 and itemset2
-          wPFIItemset candidate = new wPFIItemset();
-          for (wPFIItem item : itemset1.getItems()) {
-            candidate.addItem(item);
-          }
-          candidate.addItem(missing);
-
-          // The candidate is tested to see if its subsets of size k-1 are included in
-          // level k-1 (they are frequent).
-          if (allSubsetsFrequent(candidate, levelK_1)) {
-            // if it pass the test, add it to the set of candidates
-            candidates.add(candidate);
-          }
-        }
-      }
-    }
-    // return the set of candidates
-    return candidates;
-  }
-
-  /**
-   * Check if all subsets of size k-1 of a candidate itemset of size k are
-   * frequent.
-   * 
-   * @param candidate the candidate itemset
-   * @param levelK_1  frequent itemsets of size k-1
-   * @return true if all subsets are frequent, otherwise false
-   */
-  protected boolean allSubsetsFrequent(wPFIItemset candidate, Set<wPFIItemset> levelK_1) {
-    // To generate all the set of size K-1, we will proceed
-    // by removing each item, one by one.
-
-    // if only one item, return true because the empty set is always frequent
-    if (candidate.size() == 1) {
-      return true;
-    }
-    // for each item
-    for (wPFIItem item : candidate.getItems()) {
-      // copy the itemset without this item to get a suset
-      wPFIItemset subset = candidate.cloneItemSetMinusOneItem(item);
-      boolean found = false;
-      // we scan itemsets of size k-1
-      for (wPFIItemset itemset : levelK_1) {
-        // if we found the subset, then set found to true
-        // and stop this loop
-        if (itemset.isEqualTo(subset)) {
-          found = true;
-          break;
-        }
-      }
-      // if the subset was not found, then we return false
-      if (found == false) {
+  private boolean verifyCandidate(List<wPFIItemset> candidates, wPFIItemset candidate) {
+    for (wPFIItemset validator : candidates) {
+      if (validator.isEqualTo(candidate))
         return false;
-      }
     }
-    // all the subsets were found, so we return true
     return true;
   }
 
   /**
-   * Print statistics about the latest execution.
+   * Calculate the probability the the given itemset is exist in the j-th
+   * transaction.
+   *
+   * @param j       the index of the transaction
+   * @param itemset the itemset used to calculate the probability
+   * @return a double
    */
-  public void printStats() {
-    System.out
-        .println("=============  U-APRIORI - STATS =============");
-    long temps = endTimestamp - startTimestamp;
-    // System.out.println(" Total time ~ " + temps + " ms");
-    System.out.println(" Transactions count from database : "
-        + database.size());
-    System.out.println(" Candidates count : " + totalCandidateCount);
-    System.out.println(" Database scan count : " + databaseScanCount);
-    System.out.println(" The algorithm stopped at size " + (k - 1)
-        + ", because there is no candidate");
-    System.out.println(" Uncertain itemsets count : " + itemsetCount);
+  private double probItemsetInTransaction(int j, wPFIItemset itemset) {
+    wPFIItemset transactionJ = db.getTransactions().get(j - 1);
 
-    System.out.println(" Total time ~ " + temps + " ms");
-    System.out
-        .println("===================================================");
+    /**
+     * The itemset will not exist in the transaction if its size is larger than the
+     * transaction's.
+     */
+    if (itemset.size() > transactionJ.size())
+      return 0;
+
+    double prob = 1;
+
+    /**
+     * The probability would be return as 0 if an item in the itemset is not exist
+     * in the transaction.
+     */
+    for (wPFIItem item : itemset.getItems()) {
+      boolean found = false;
+
+      for (wPFIItem itemTX : transactionJ.getItems()) {
+        if (itemTX.equals(item)) {
+          found = true;
+          prob *= itemTX.getProbability();
+          break;
+        }
+      }
+
+      if (!found)
+        return 0;
+    }
+    return prob;
   }
 
   /**
-   * Set the maximum pattern length
-   * 
-   * @param length the maximum length
+   * Calculate the probability the given itemset exists in the first j
+   * transactions at least i-times. Or P(sup(itemset) >= i) in the first j
+   * transactions
+   *
+   * @param i       the minimum support of the itemset in the first j
+   *                transactions
+   * @param j       the number of transactions used for calculating
+   * @param itemset the itemset used for calculating support
+   * @return a double
    */
-  public void setMaximumPatternLength(int length) {
-    this.maxItemsetSize = length;
-  }
-
-  public static void printTransactionJ(int j, UncertainDatabase db) {
-    wPFIItemset txJ = db.getTransactions().get(j);
-
-    for (wPFIItem item : txJ.getItems()) {
-      System.out.println(item.toString());
-    }
-  }
-
-  public static double probItemsetInjTrasaction(UncertainDatabase database, wPFIItemset itemset, int j) {
-    wPFIItemset transactionJ = database.getTransactions().get(j);
-
-    double prob = 0;
-    for (wPFIItem item : itemset.getItems()) {
-      for (wPFIItem itemTX : transactionJ.getItems()) {
-        if (itemTX.getId() > item.getId())
-          break;
-
-        if (itemTX.getId() == item.getId()) {
-          if (prob == 0)
-            prob = itemTX.getProbability();
-          else
-            prob *= itemTX.getProbability();
-
-          break;
-        }
-      }
-    }
-
-    return prob;
-  }
-
-  public static double probItemsetInTransaction(UncertainDatabase database, wPFIItemset itemset, int j) {
-    wPFIItemset transactionJ = database.getTransactions().get(j);
-
-    double prob = 0;
-    for (wPFIItem item : itemset.getItems()) {
-      for (wPFIItem itemTX : transactionJ.getItems()) {
-        if (itemTX.getId() > item.getId())
-          break;
-
-        if (itemTX.getId() == item.getId()) {
-          if (prob == 0)
-            prob = itemTX.getProbability();
-          else
-            prob *= itemTX.getProbability();
-          break;
-        }
-      }
-    }
-    return prob;
-  }
-
-  public static double frequentnessProbability(int i, int j, wPFIItemset itemset, UncertainDatabase database) {
-    if (i > j)
-      return 0.0;
-
+  protected double frequentnessProbability(int i, int j, wPFIItemset itemset) {
     if (i == 0)
-      return 1.0;
+      return 1;
 
-    double prob = probItemsetInTransaction(database, itemset, j);
-    return frequentnessProbability(i - 1, j - 1, itemset, database) * prob
-        + frequentnessProbability(i, j - 1, itemset, database) * (1 - prob);
-    // return 0;
+    if (j == 0)
+      return 0;
+
+    double prob = probItemsetInTransaction(j, itemset);
+
+    double firstProb = frequentnessProbability(i - 1, j - 1, itemset) * prob;
+    double secondProb = frequentnessProbability(i, j - 1, itemset) * (1 - prob);
+
+    return firstProb + secondProb;
+  }
+
+  /**
+   * Calculate the means of item's weight in the given itemset.
+   *
+   * @param itemset the itemset
+   * @return a double
+   */
+  private double itemsetWeight(wPFIItemset itemset) {
+    double sumWeight = 0;
+
+    for (wPFIItem item : itemset.getItems()) {
+      sumWeight += weightTable.get(item.getId());
+    }
+
+    return sumWeight /= itemset.size();
+  }
+
+  /**
+   * Find the minimum weight of the items in the given itemset.
+   *
+   * @param itemset
+   * @return a double
+   */
+  private double minWeightItemset(wPFIItemset itemset) {
+    double minWeight = 1.1;
+    double w;
+
+    // wPFIItem argmin = new wPFIItem(-1, 0);
+
+    for (wPFIItem item : itemset.getItems()) {
+      w = weightTable.get(item.getId());
+      if (w < minWeight) {
+        minWeight = w;
+        // argmin = item;
+      }
+    }
+
+    return minWeight;
+  }
+
+  private double maxWeightItemset(HashMap<Integer, Double> weightTable) {
+    double maxWeight = 0;
+
+    for (double w : weightTable.values()) {
+      if (w > maxWeight) {
+        maxWeight = w;
+      }
+    }
+    return maxWeight;
+  }
+
+  private BigDecimal factorial(int n) {
+    BigDecimal result = BigDecimal.ONE;
+    for (int i = 2; i <= n; i++) {
+        result = result.multiply(BigDecimal.valueOf(i));
+    }
+    return result;
+  }
+
+  private double _F(int k, double mu) {
+    MathContext mathContext = new MathContext(50);
+    BigDecimal muDecimal = BigDecimal.valueOf(mu);
+    BigDecimal result = BigDecimal.ZERO;
+
+    for (int i = 0; i <= k; i++) {
+        result = result.add(muDecimal.pow(i).multiply(BigDecimal.valueOf(Math.exp(-mu))).divide(factorial(i), mathContext));
+    }
+
+    return result.doubleValue();
+  }
+
+  private double calMu(double m, double lower, double upper) {
+    double epsilon = 1e-6;
+
+    while ((upper - lower) > epsilon) {
+        double middle = (upper + lower) / 2;
+        double value = 1 - _F((int) (this.minsup - 1), middle) - this.t / m;
+
+        if (value > 0) {  
+            upper = middle;
+        } else if (value < 0) {
+            lower = middle;
+        } else {
+            return middle;
+        }
+    }
+
+    return (upper + lower) / 2;
+  }
+
+  /**
+   * Algorithm 2 in the research paper.
+   * This algorithm is used for generating the size-k candidate itemsets and early
+   * pruning.
+   *
+   * @param wPFI_K_1 the size-k-1 wPF itemsets
+   * @return a list of size-k candidates itemsets.
+   */
+  protected List<wPFIItemset> wPFIAprioriGenerate(List<wPFIItemset> wPFI_K_1) {
+    List<wPFIItemset> candidateK = new ArrayList<wPFIItemset>();
+    Set<wPFIItem> I_ = new HashSet<wPFIItem>();
+
+    for (wPFIItemset candidate : wPFI_K_1) {
+      I_.addAll(candidate.getItems());
+    }
+
+    // Set<wPFIItem> differentSet = new HashSet<wPFIItem>();
+    // wPFIItemset tempCandidate;
+    // wPFIItem minI;
+    double argmin;
+
+    for (wPFIItemset candidate : wPFI_K_1) {
+      // System.out.println(I_.size());
+      // differentSet.addAll(I_);
+      Set<wPFIItem> differentSet = new HashSet<wPFIItem>(I_);
+      differentSet.removeAll(candidate.getItems());
+
+      // System.out.print(candidate.size() + "\t");
+      // System.out.println(differentSet.size());
+
+      for (wPFIItem item : differentSet) {
+        wPFIItemset tempCandidate = candidate;
+        tempCandidate.addItem(item);
+
+        if (itemsetWeight(tempCandidate) < t)
+          continue;
+
+        // if (verifyCandidate(candidateK, tempCandidate))
+        // continue;
+
+        candidateK.add(tempCandidate);
+      }
+      argmin = minWeightItemset(candidate);
+      differentSet = new HashSet<wPFIItem>(allItems);
+      differentSet.removeAll(I_);
+      differentSet.removeAll(candidate.getItems());
+      // System.out.println(differentSet.size());
+
+      for (wPFIItem item : differentSet) {
+        wPFIItemset tempCandidate = candidate;
+        tempCandidate.addItem(item);
+        
+        if (itemsetWeight(tempCandidate) < t) {
+          continue;
+        }
+        if (weightTable.get(item.getId()) >= argmin) {    
+          continue;
+        }
+        candidateK.add(tempCandidate);
+      }
+      
+      // argmin = minWeightItemset(candidate);
+      //
+      // differentSet = allItems;
+      // differentSet.removeAll(I_);
+      // // differentSet.removeAll(candidate.getItems());
+      //
+      // for (wPFIItem item : differentSet) {
+      // tempCandidate = candidate;
+      // tempCandidate.addItem(item);
+      //
+      // if (itemsetWeight(tempCandidate) < t)
+      // continue;
+      // if (weightTable.get(item.getId()) >= argmin)
+      // continue;
+      // if (verifyCandidate(candidateK, tempCandidate))
+      // continue;
+      //
+      // candidateK.add(tempCandidate);
+      // }
+    }
+
+    return candidateK;
+  }
+
+  protected List<wPFIItemset> wPFIApriori3(List<wPFIItemset> wPFI_K_1) {
+    List<wPFIItemset> candidateK = new ArrayList<wPFIItemset>();
+    double m = maxWeightItemset(weightTable);
+    double n = db.getTransactions().get(0).size();
+    double mu_ = calMu(m, 0, n);
+    Set<wPFIItem> I_ = new HashSet<wPFIItem>();
+
+    for (wPFIItemset candidate : wPFI_K_1) {
+      I_.addAll(candidate.getItems());
+    }
+
+    // Set<wPFIItem> differentSet = new HashSet<wPFIItem>();
+    // wPFIItemset tempCandidate;
+    // wPFIItem minI;
+    double argmin;
+    for (wPFIItemset candidate : wPFI_K_1) {
+      // System.out.println(I_.size());
+      // differentSet.addAll(I_);
+      Set<wPFIItem> differentSet = new HashSet<wPFIItem>(I_);
+      differentSet.removeAll(candidate.getItems());
+
+      // System.out.print(candidate.size() + "\t");
+      // System.out.println(differentSet.size());
+
+      for (wPFIItem item : differentSet) {
+        wPFIItemset tempCandidate = candidate;
+        tempCandidate.addItem(item);
+
+        if (itemsetWeight(tempCandidate) < t)
+          continue;
+
+        if (...)
+        // if (verifyCandidate(candidateK, tempCandidate))
+        // continue;
+
+        candidateK.add(tempCandidate);
+      }
+      // argmin = minWeightItemset(candidate);
+      // differentSet = new HashSet<wPFIItem>(allItems);
+      // differentSet.removeAll(I_);
+      // differentSet.removeAll(candidate.getItems());
+      // System.out.println(differentSet.size());
+
+      // for (wPFIItem item : differentSet) {
+      //   wPFIItemset tempCandidate = candidate;
+      //   tempCandidate.addItem(item);
+        
+      //   if (itemsetWeight(tempCandidate) < t) {
+      //     continue;
+      //   }
+      //   if (weightTable.get(item.getId()) >= argmin) {    
+      //     continue;
+      //   }
+      //   candidateK.add(tempCandidate);
+      // }
+      
+      // argmin = minWeightItemset(candidate);
+      //
+      // differentSet = allItems;
+      // differentSet.removeAll(I_);
+      // // differentSet.removeAll(candidate.getItems());
+      //
+      // for (wPFIItem item : differentSet) {
+      // tempCandidate = candidate;
+      // tempCandidate.addItem(item);
+      //
+      // if (itemsetWeight(tempCandidate) < t)
+      // continue;
+      // if (weightTable.get(item.getId()) >= argmin)
+      // continue;
+      // if (verifyCandidate(candidateK, tempCandidate))
+      // continue;
+      //
+      // candidateK.add(tempCandidate);
+      // }
+    }
+
+    return candidateK;
   }
 
   public static void main(String[] args) throws IOException {
-    UncertainDatabase db = new UncertainDatabase();
-    db.loadFile("../../data/chess.dat");
-    // db.printDatabase();
-    // ;
-    for (wPFIItem item : db.getAllItems())
-      System.out.println(item.toString());
-
-    // wPFIItemset X = new wPFIItemset();
-    // X.addItem(new wPFIItem(3, 1.0));
-    // X.addItem(new wPFIItem(5, 0.3));
-
-    // System.out.println(frequentnessProbability(1, 4, X, db));
+    UncertainDatabase database = new UncertainDatabase();
+    database.loadFile("./../../data/connect.dat");
+    wPFIApriori test = new wPFIApriori(database);
+    test.runAlgorithm(0.2, 0.5, 0.6);
   }
 }

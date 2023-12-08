@@ -1,250 +1,137 @@
-import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * This class represents an itemset (a set of items)
- * as used by the WPFIApriori algorithm uncertain itemset mining.
+ * as used by the wPFIApriori algorithm for uncertain itemset mining.
  *
- * @see AlgoWPFIApriori
- * @see ItemWPFIApriori
- * @author Philippe Fournier-Viger
+ * @see UncertainDatabase
+ * @see wPFIItem
+ * @see wPFIApriori
+ * @author Nguyen Hoang Phuc (scuph-ng)
  */
 public class wPFIItemset {
-  // an itemset is an ordered list of items
-  private List<wPFIItem> items = new ArrayList<wPFIItem>();
-  // the expected support
+  private Set<wPFIItem> items = new HashSet<wPFIItem>();
   private double expectedsupport = 0;
 
-  /**
-   * Default constructor
-   */
   public wPFIItemset() {
-
   }
 
   /**
    * Get the expected support of this itemset.
-   * 
-   * @return expected support value.
+   *
+   * @return a double
    */
   public double getExpectedSupport() {
     return expectedsupport;
   }
 
   /**
-   * Get the expected support as a five decimals string
-   * 
-   * @return a string
+   * Set the expected support to a given value.
+   *
+   * @param value the expected support of the itemset
    */
-  public String getSupportAsString() {
-    DecimalFormat format = new DecimalFormat();
-    format.setMinimumFractionDigits(0);
-    format.setMaximumFractionDigits(5);
-    return format.format(expectedsupport);
+  void setExpectedSupport(double value) {
+    this.expectedsupport = value;
   }
 
   /**
-   * Increase the expected support of this itemset by a given amount.
-   * 
-   * @param supp the amount of support.
+   * Get all items from the itemset.
+   *
+   * @return a set of items.
    */
-  void increaseSupportBy(double supp) {
-    expectedsupport += supp;
-  }
-
-  /**
-   * Add an item to that itemset
-   * 
-   * @param value the item to be added
-   */
-  void addItem(wPFIItem value) {
-    items.add(value);
-  }
-
-  /**
-   * Get items from that itemset.
-   * 
-   * @return a list of integers (items).
-   */
-  public List<wPFIItem> getItems() {
+  public Set<wPFIItem> getItems() {
     return items;
   }
 
   /**
-   * Get the item at at a given position in that itemset
+   * Add an item to the itemset
    * 
-   * @param index the position
-   * @return the item (Integer)
+   * @param item the item to be added
    */
-  public wPFIItem get(int index) {
-    return items.get(index);
+  void addItem(wPFIItem item) {
+    items.add(item);
   }
 
   /**
-   * print this itemset to System.out.
+   * Remove all the items from the itemset.
    */
-  public void print() {
-    System.out.print(toString());
+  void clear() {
+    items.clear();
   }
 
   /**
-   * Print the items in this itemset to System.out.
-   */
-  public void printWithoutSupport() {
-    StringBuilder r = new StringBuilder();
-    for (wPFIItem attribute : items) {
-      r.append(attribute.getId());
-      r.append(' ');
-    }
-    System.out.print(r);
-  }
-
-  /**
-   * Get a string representation of the items in this itemset.
-   */
-  public String toString() {
-    StringBuilder r = new StringBuilder();
-    for (wPFIItem attribute : items) {
-      r.append(attribute.getId());
-      r.append(' ');
-    }
-    return r.toString();
-  }
-
-  /**
-   * Check if this itemset contains a given item.
-   * 
-   * @param item the item
-   * @return true, if yes, otherwise false.
-   */
-  public boolean contains(wPFIItem item) {
-    return items.contains(item);
-  }
-
-  /**
-   * Checks if this itemset is lexically smaller than a given itemset of the same
-   * size.
-   * 
-   * @param itemset2 a given itemset
-   * @return true, if yes, otherwise, false
-   */
-  boolean isLexicallySmallerthan(wPFIItemset itemset2) {
-    // for each item in this itemset
-    for (int i = 0; i < items.size(); i++) {
-      // if it is larger than the item at the same position in itemset2
-      // return false
-      if (items.get(i).getId() > itemset2.items.get(i).getId()) {
-        return false;
-      }
-      // if it is smaller than the item at the same position in itemset2
-      // return true
-      else if (items.get(i).getId() < itemset2.items.get(i).getId()) {
-        return true;
-      }
-    }
-    // otherwise return true
-    return true;
-  }
-
-  /**
-   * Check if this itemset is equal to another one.
-   * 
-   * @param itemset2 the other itemset
-   * @return true if yes, otherwise false
-   */
-  public boolean isEqualTo(wPFIItemset itemset2) {
-    // if not the same size, they can't be equal!
-    if (items.size() != itemset2.items.size()) {
-      return false;
-    }
-    // for each item
-    for (wPFIItem val : items) {
-      // check if it is contained in the other itemset
-      // if not they are not equal.
-      if (!itemset2.contains(val)) {
-        return false;
-      }
-    }
-    // they are equal, then return true
-    return true;
-  }
-
-  /**
-   * Set the expected support to a given value.
-   * 
-   * @param expectedsupport the value
-   */
-  void setExpectedSupport(double expectedsupport) {
-    this.expectedsupport = expectedsupport;
-  }
-
-  /**
-   * Make a copy of an itemset but exclude a given item
-   * 
-   * @param itemToExclude the item
-   * @return the copy
-   */
-  wPFIItemset cloneItemSetMinusOneItem(wPFIItem itemToExclude) {
-    // create a new itemset
-    wPFIItemset itemset = new wPFIItemset();
-    // for each item
-    for (wPFIItem item : items) {
-      // if it is not the one to be excluded, then add it
-      if (!item.equals(itemToExclude)) {
-        itemset.addItem(item);
-      }
-    }
-    // return the itemset
-    return itemset;
-  }
-
-  /**
-   * Get the number of items in this itemset
-   * 
-   * @return the item count (int)
+   * Get the itemset size
+   *
+   * @return an int
    */
   public int size() {
     return items.size();
   }
 
   /**
-   * check if the item from this itemset are all the same as those of itemset2
-   * except the last item
-   * and that itemset2 is lexically smaller than this itemset. If all these
-   * conditions are satisfied,
-   * this method return the last item of itemset2. Otherwise it returns null.
-   * 
-   * @return the last item of itemset2, or null.
+   * Check if this itemset contains a given item.
+   *
+   * @param item the item to be checked
+   * @return true if yes, otherwise false.
    */
-  wPFIItem allTheSameExceptLastItem(wPFIItemset itemset2) {
-    // if not the same size, then return null
-    if (itemset2.size() != items.size()) {
-      return null;
-    }
-    for (int i = 0; i < items.size(); i++) {
-      // if they are the last items
-      if (i == items.size() - 1) {
-        // the one from items should be smaller (lexical order) and different than the
-        // one of itemset2
-        if (items.get(i).getId() >= itemset2.get(i).getId()) {
-          return null;
-        }
-      }
-      // if they are not the last items, they should be different
-      else if (items.get(i).getId() != itemset2.get(i).getId()) {
-        return null;
-      }
-    }
-    return itemset2.get(itemset2.size() - 1);
+  public boolean contains(wPFIItem item) {
+    return items.contains(item);
   }
 
   /**
-   * Set the items in this itemsets.
-   * 
-   * @param items a list of items.
+   * Check if this itemset is equal to another one.
+   *
+   * @param itemset2 the other itemset
+   * @return true if yes, otherwise false
    */
-  void setItems(List<wPFIItem> items) {
-    this.items = items;
+  public boolean isEqualTo(wPFIItemset itemset2) {
+    if (items.size() != itemset2.items.size()) {
+      return false;
+    }
+
+    for (wPFIItem validateItem : items) {
+      if (!itemset2.contains(validateItem)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * print this itemset to System.out.
+   */
+  public void print() {
+    System.out.println(toString());
+  }
+
+  /**
+   * Print the items with its probability in this itemset to System.out.
+   */
+  public void printWithProbability() {
+    System.out.println(toStringWithSupport());
+  }
+
+  /**
+   * Get a string representation of the items in this itemset.
+   */
+  public String toString() {
+    String str = "";
+    for (wPFIItem item : items)
+      str += item.getId() + " ";
+
+    return str;
+  }
+
+  /**
+   * Get a string representation of the items with its probability.
+   */
+  public String toStringWithSupport() {
+    String str = "";
+    for (wPFIItem item : items)
+      str += "(" + item.getId() + ", " + item.getProbability() + ") ";
+
+    return str;
   }
 }
