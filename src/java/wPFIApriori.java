@@ -1,20 +1,18 @@
 import java.io.IOException;
+import java.util.Collections;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Random;
-import java.util.List;
-import java.util.Set;
 
 /**
  * This class represent the frequent itemset mining algorithm in uncertain
  * datasets.
  *
- * @see UncertainDatabase
- * @see HashSet<wPFIItem>
- * @see wPFIItem
- *
  * @author Nguyen Hoang Phuc (scuph-ng)
+ *
+ * @see UncertainDatabase
+ * @see wPFIItem
  */
 public class wPFIApriori {
   /**
@@ -26,10 +24,9 @@ public class wPFIApriori {
 
   protected int k;
   protected int minsup;
-  // protected int dbScanCount = 0;
   protected int databaseSize;
 
-  protected double t;
+  protected float t;
 
   protected long startTime;
   protected long endTime;
@@ -45,8 +42,14 @@ public class wPFIApriori {
     /**
      * Assign the properties of the database.
      */
-    databaseSize = db.size();
+    databaseSize = database.size();
     allItems = database.getAllItems();
+
+    /**
+     * TODO: create a method to define whether
+     * generate a weight table is necessary or not.
+     */
+    weightTable = generateWeightTable();
   }
 
   /**
@@ -56,40 +59,36 @@ public class wPFIApriori {
    * @param threshold    the probabilistic frequent threshold
    * @param scale_factor the scale factor
    */
-  public void runAlgorithm(double msup_ratio, double threshold, double scale_factor) {
+  public void runAlgorithm(float msup_ratio, float threshold, float scale_factor) {
     startTime = System.currentTimeMillis();
 
     k = 1;
     t = threshold;
-    minsup = (int) msup_ratio * databaseSize;
+    minsup = (int) Math.round(msup_ratio * databaseSize);
 
     System.out.println("===========================================================");
-    System.out.println("Minimum support ratio: " + msup_ratio);
+    System.out.println("Minimum support ratio: " + minsup);
     System.out.println("Confidence threshold: " + threshold);
 
-    List<List<HashSet<wPFIItem>>> wPFI = new ArrayList<List<HashSet<wPFIItem>>>();
-
-    /**
-     * TODO: create a method to define whether
-     * generate a weight table is necessary or not.
-     */
-    weightTable = generateWeightTable();
+    ArrayList<ArrayList<HashSet<wPFIItem>>> wPFI = new ArrayList<ArrayList<HashSet<wPFIItem>>>();
 
     System.out.println("===========================================================");
+
     /**
      * Scan and find the size-1 probabilistic frequent itemset.
      */
-    List<HashSet<wPFIItem>> wPFI_k = scanFindSize1();
+    ArrayList<HashSet<wPFIItem>> wPFI_k = scanFindSize1();
     wPFI.add(wPFI_k);
 
     /**
-     * Use while iteration to find the wPFI until no more new wPFI is found.
+     * Use while iteration to find the wPFI until no more new wPFI is discover.
      */
     while (wPFI_k.size() != 0) {
-      System.out.printf("There are %d size-%d candidates.", wPFI_k.size(), k);
+      HashSet<HashSet<wPFIItem>> candidateHashSet = new HashSet<>(wPFI_k);
+      System.out.printf("There are %d\t size-%d candidates.", candidateHashSet.size(), k);
       System.out.println();
 
-      List<HashSet<wPFIItem>> candidateK = wPFIAprioriGenerate(wPFI.get(k - 1));
+      ArrayList<HashSet<wPFIItem>> candidateK = wPFIAprioriGenerate(wPFI.get(k - 1));
       wPFI_k = scanFindSizeK(candidateK);
       wPFI.add(wPFI_k);
       k++;
@@ -103,7 +102,7 @@ public class wPFIApriori {
   /**
    * Generate a weight table for each item in the database.
    */
-  private HashMap<Integer, Double> generateWeightTable() {
+  protected HashMap<Integer, Double> generateWeightTable() {
     HashMap<Integer, Double> weightTable = new HashMap<Integer, Double>();
     Random random = new Random();
 
@@ -115,30 +114,44 @@ public class wPFIApriori {
   }
 
   /**
+   * Return the mean of item weight in a given itemset.
+   *
+   * @param itemset the itemset which used to calculate
+   * @return a double
+   */
+  protected double itemsetWeight(HashSet<wPFIItem> itemset) {
+    double sumWeight = 0;
+
+    for (wPFIItem item : itemset) {
+      sumWeight += weightTable.get(item.getId());
+    }
+
+    return sumWeight / itemset.size();
+  }
+
+  /**
    * Scan and find the size-1 probabilistic frequent itemsets.
    *
    * @return a list of itemset that satisfied the condition
    */
-  protected List<HashSet<wPFIItem>> scanFindSize1() {
-    List<HashSet<wPFIItem>> new_candidates = new ArrayList<HashSet<wPFIItem>>();
+  protected ArrayList<HashSet<wPFIItem>> scanFindSize1() {
+    ArrayList<HashSet<wPFIItem>> new_candidates = new ArrayList<HashSet<wPFIItem>>();
 
-    for (wPFIItem item : db.getAllItems()) {
-      HashSet<wPFIItem> candidate = new HashSet<wPFIItem>();
+    HashSet<wPFIItem> candidate = new HashSet<wPFIItem>();
+    for (wPFIItem item : allItems) {
       candidate.add(item);
 
-      Pr(candidate);
       double candidate_weight = weightTable.get(item.getId());
-      double candidate_confidence = frequentnessProbability(minsup, databaseSize, candidate);
+      double candidate_confidence = Pr(candidate);
 
       // System.out.print(candidate.toString());
       // System.out.printf("\t%2f\t", candidate_weight);
       // System.out.println(candidate_confidence);
 
-      if (candidate_confidence * candidate_weight < t)
-        continue;
+      if (candidate_confidence * candidate_weight >= t)
+        new_candidates.add(candidate);
 
-      new_candidates.add(candidate);
-      probabilityList.clear();
+      candidate.clear();
     }
 
     return new_candidates;
@@ -150,13 +163,12 @@ public class wPFIApriori {
    * @param wPFI_k list of the size-k candidate itemsets
    * @return a list of the itemset that satisfied the condition
    */
-  protected List<HashSet<wPFIItem>> scanFindSizeK(List<HashSet<wPFIItem>> wPFI_k) {
-    List<HashSet<wPFIItem>> new_candidates = new ArrayList<HashSet<wPFIItem>>();
+  protected ArrayList<HashSet<wPFIItem>> scanFindSizeK(ArrayList<HashSet<wPFIItem>> wPFI_k) {
+    ArrayList<HashSet<wPFIItem>> new_candidates = new ArrayList<HashSet<wPFIItem>>();
 
     for (HashSet<wPFIItem> candidate : wPFI_k) {
-      Pr(candidate);
       double candidate_weight = itemsetWeight(candidate);
-      double candidate_confidence = frequentnessProbability(minsup, databaseSize, candidate);
+      double candidate_confidence = Pr(candidate);
 
       // System.out.print(candidate.toString());
       // System.out.printf("\t%2f\t", candidate_weight);
@@ -164,24 +176,10 @@ public class wPFIApriori {
 
       if (candidate_confidence * candidate_weight >= t)
         new_candidates.add(candidate);
-      probabilityList.clear();
     }
 
     return new_candidates;
   }
-
-  /**
-   * TODO: decide whether this method is necessary.
-   * 
-   * private boolean verifyCandidate(List<HashSet<wPFIItem>> candidates,
-   * HashSet<wPFIItem> candidate) {
-   * for (HashSet<wPFIItem> validator : candidates) {
-   * if (validator.isEqualTo(candidate))
-   * return false;
-   * }
-   * return true;
-   * }
-   */
 
   /**
    * Calculate the probability the the given itemset is exist in the j-th
@@ -191,17 +189,17 @@ public class wPFIApriori {
    * @param itemset the itemset used to calculate the probability
    * @return a double
    */
-  private double PrEachTransaction(int j, HashSet<wPFIItem> itemset) {
-    HashSet<wPFIItem> transactionJ = db.getTransactions().get(j);
+  protected double itemsetSupportInTransaction(int j, HashSet<wPFIItem> itemset) {
+    HashSet<wPFIItem> transaction = db.getTransactions().get(j);
 
     /**
      * The itemset will not exist in the transaction if its size is larger than the
      * transaction's.
      */
-    if (itemset.size() > transactionJ.size())
+    if (itemset.size() > transaction.size())
       return 0;
 
-    double prob = 1;
+    double probability = 1;
 
     /**
      * The probability would be return as 0 if an item in the itemset is not exist
@@ -210,10 +208,10 @@ public class wPFIApriori {
     for (wPFIItem item : itemset) {
       boolean found = false;
 
-      for (wPFIItem itemTX : transactionJ) {
-        if (itemTX.equals(item)) {
+      for (wPFIItem itemTransaction : transaction) {
+        if (itemTransaction.equals(item)) {
           found = true;
-          prob *= itemTX.getProbability();
+          probability *= itemTransaction.getProbability();
           break;
         }
       }
@@ -221,26 +219,7 @@ public class wPFIApriori {
       if (!found)
         return 0;
     }
-    return prob;
-  }
-
-  /**
-   * Create a list that contain the probability that an itemset is exist in every
-   * trasactions.
-   */
-  private List<Double> probabilityList = new ArrayList<Double>();
-
-  /**
-   * Calculate the value for the defined probabilityList
-   *
-   * @param itemset the itemset which to calculate
-   */
-  private void Pr(HashSet<wPFIItem> itemset) {
-    for (int i = 0; i < databaseSize; i++) {
-      double prob = PrEachTransaction(i, itemset);
-      probabilityList.add(prob);
-      // System.out.println(itemset.toString() + " " + prob);
-    }
+    return probability;
   }
 
   /**
@@ -248,41 +227,35 @@ public class wPFIApriori {
    * transactions at least i-times. Or P(sup(itemset) >= i) in the first j
    * transactions
    *
-   * @param i       the minimum support of the itemset in the first j
-   *                transactions
-   * @param j       the number of transactions used for calculating
    * @param itemset the itemset used for calculating support
    * @return a double
    */
-  protected double frequentnessProbability(int i, int j, HashSet<wPFIItem> itemset) {
-    if (i == 0)
-      return 1;
+  protected double Pr(HashSet<wPFIItem> itemset) {
+    double[][] P = new double[minsup + 1][databaseSize + 1];
+    double mu_itemset = 0;
 
-    if (j == 0)
-      return 0;
+    double[] probabilities = new double[databaseSize];
 
-    double prob = probabilityList.get(j);
-
-    double firstProb = frequentnessProbability(i - 1, j - 1, itemset) * prob;
-    double secondProb = frequentnessProbability(i, j - 1, itemset) * (1 - prob);
-
-    return firstProb + secondProb;
-  }
-
-  /**
-   * Calculate the means of item's weight in the given itemset.
-   *
-   * @param itemset the itemset
-   * @return a double
-   */
-  private double itemsetWeight(HashSet<wPFIItem> itemset) {
-    double sumWeight = 0;
-
-    for (wPFIItem item : itemset) {
-      sumWeight += weightTable.get(item.getId());
+    for (int i = 0; i < databaseSize; i++) {
+      probabilities[i] = itemsetSupportInTransaction(i, itemset);
+      mu_itemset += probabilities[i];
     }
 
-    return sumWeight /= itemset.size();
+    for (int j = 0; j <= databaseSize; j++) {
+      P[0][j] = 1.0;
+    }
+
+    for (int i = 1; i <= minsup; i++) {
+      if (P[i - 1][databaseSize - minsup + i] < t) {
+        return 0.0;
+      }
+
+      for (int j = i; j <= databaseSize; j++) {
+        P[i][j] = P[i - 1][j - 1] * probabilities[j - 1] + P[i][j - 1] * (1 - probabilities[j - 1]);
+      }
+    }
+    // System.out.println(itemset + "\t" + P[minsup][databaseSize]);
+    return P[minsup][databaseSize];
   }
 
   /**
@@ -291,17 +264,15 @@ public class wPFIApriori {
    * @param itemset
    * @return a double
    */
-  private double minWeightItemset(HashSet<wPFIItem> itemset) {
+  protected double minWeightItemset(HashSet<wPFIItem> itemset) {
     double minWeight = 1.1;
-    double w;
-
-    // wPFIItem argmin = new wPFIItem(-1, 0);
+    double itemWeight;
 
     for (wPFIItem item : itemset) {
-      w = weightTable.get(item.getId());
-      if (w < minWeight) {
-        minWeight = w;
-        // argmin = item;
+      itemWeight = weightTable.get(item.getId());
+
+      if (itemWeight < minWeight) {
+        minWeight = itemWeight;
       }
     }
 
@@ -316,40 +287,29 @@ public class wPFIApriori {
    * @param wPFI_K_1 the size-k-1 wPF itemsets
    * @return a list of size-k candidates itemsets.
    */
-  protected List<HashSet<wPFIItem>> wPFIAprioriGenerate(List<HashSet<wPFIItem>> wPFI_K_1) {
-    List<HashSet<wPFIItem>> candidateK = new ArrayList<HashSet<wPFIItem>>();
-    Set<wPFIItem> I_ = new HashSet<wPFIItem>();
+  protected ArrayList<HashSet<wPFIItem>> wPFIAprioriGenerate(ArrayList<HashSet<wPFIItem>> wPFI_K_1) {
+    ArrayList<HashSet<wPFIItem>> candidateK = new ArrayList<HashSet<wPFIItem>>();
+
+    HashSet<wPFIItem> I_ = new HashSet<wPFIItem>();
+    HashSet<wPFIItem> differentSet = new HashSet<>();
+    HashSet<wPFIItem> tempCandidate = new HashSet<>();
 
     for (HashSet<wPFIItem> candidate : wPFI_K_1) {
       I_.addAll(candidate);
     }
 
-    HashSet<wPFIItem> differentSet = new HashSet<>();
-    HashSet<wPFIItem> tempCandidate = new HashSet<>();
-    // wPFIItem minI;
-    // double argmin;
-
     for (HashSet<wPFIItem> candidate : wPFI_K_1) {
-      // HashSet<wPFIItem> differentSet = new HashSet<wPFIItem>(I_);
       differentSet.addAll(I_);
       differentSet.removeAll(candidate);
 
-      // System.out.print(candidate.size() + "\t");
-      // System.out.println(differentSet.size());
-
       for (wPFIItem item : differentSet) {
-        // HashSet<wPFIItem> tempCandidate = new HashSet<wPFIItem>(candidate);
-        // HashSet<wPFIItem> tempCandidate = new HashSet<wPFIItem>(candidate);
         tempCandidate.addAll(candidate);
         tempCandidate.add(item);
 
-        // System.out.println(tempCandidate.toString());
-
-        if (itemsetWeight(tempCandidate) < t)
+        if (itemsetWeight(tempCandidate) < t) {
+          tempCandidate.clear();
           continue;
-
-        // if (verifyCandidate(candidateK, tempCandidate))
-        // continue;
+        }
 
         candidateK.add(new HashSet<>(tempCandidate));
         tempCandidate.clear();
@@ -357,21 +317,23 @@ public class wPFIApriori {
 
       double argmin = minWeightItemset(candidate);
 
+      tempCandidate.clear();
       differentSet.addAll(allItems);
       differentSet.removeAll(I_);
       // differentSet.removeAll(candidate);
 
       for (wPFIItem item : differentSet) {
-        // HashSet<wPFIItem> tempCandidate = new HashSet<>(candidate);
         tempCandidate.addAll(candidate);
         tempCandidate.add(item);
 
-        if (itemsetWeight(tempCandidate) < t)
+        if (itemsetWeight(tempCandidate) < t) {
+          tempCandidate.clear();
           continue;
-        if (weightTable.get(item.getId()) >= argmin)
+        }
+        if (weightTable.get(item.getId()) >= argmin) {
+          tempCandidate.clear();
           continue;
-        // if (verifyCandidate(candidateK, tempCandidate))
-        // continue;
+        }
 
         candidateK.add(new HashSet<>(tempCandidate));
         tempCandidate.clear();
@@ -383,14 +345,23 @@ public class wPFIApriori {
     return candidateK;
   }
 
+  /**
+   * Algorithm 3 in the research paper.
+   */
+  public void wPFIAprioriGenerate() {
+    ArrayList<HashSet<wPFIItem>> candidateK = new ArrayList<HashSet<wPFIItem>>();
+    double maxWeight = (Collections.max(weightTable.values()));
+  }
+
   public static void main(String[] args) throws IOException {
     UncertainDatabase database = new UncertainDatabase();
-    database.loadFile("./../../data/connect.dat");
+    database.loadFile("./../../data/connect.dat", false);
 
-    wPFIApriori test = new wPFIApriori(database);
-    double minsup = Double.parseDouble(args[0]);
-    double threshold = Double.parseDouble(args[1]);
-    double scale_factor = Double.parseDouble(args[2]);
-    test.runAlgorithm(minsup, threshold, scale_factor);
+    float msup_ratio = Float.parseFloat(args[0]);
+    float threshold = Float.parseFloat(args[1]);
+    float scale_factor = Float.parseFloat(args[2]);
+    
+    wPFIApriori apriori = new wPFIApriori(database);
+    apriori.runAlgorithm(msup_ratio, threshold, scale_factor);
   }
 }
