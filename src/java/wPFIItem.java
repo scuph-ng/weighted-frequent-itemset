@@ -1,11 +1,12 @@
 /**
  * This class represents an item from an uncertain database
  * as used by the wPFIApriori algorithm for uncertain itemset mining.
+ *
+ * @author Nguyen Hoang Phuc (scuph-ng)
  * 
  * @see UncertainDatabase
  * @see wPFIApriori
  * @see wPFIItemset
- * @author Nguyen Hoang Phuc (scuph-ng)
  */
 public class wPFIItem {
   private final int id;
@@ -47,8 +48,8 @@ public class wPFIItem {
    * @return true if equal, otherwise false.
    */
   public boolean equals(Object object) {
-    wPFIItem item = (wPFIItem) object;
-    if ((item.getId() == this.getId())) {
+    wPFIItem anotherItem = (wPFIItem) object;
+    if ((anotherItem.getId() == this.getId())) {
       return true;
     }
     return false;
@@ -77,6 +78,6 @@ public class wPFIItem {
    * Get a sting representation of this item and its probability/
    */
   public String toStringWithProbability() {
-    return "" + getId() + " (" + probability + ")";
+    return "(" + getId() + "," + probability + ") ";
   }
 }
