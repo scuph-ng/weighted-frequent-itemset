@@ -41,7 +41,6 @@ public class wPFIApriori {
    */
   public wPFIApriori(UncertainDatabase database) {
     db = database;
-    database.printDatabaseProperties();
 
     /**
      * Assign the properties of the database.
@@ -87,7 +86,7 @@ public class wPFIApriori {
      * Use while iteration to find the wPFI until no more new wPFI is found.
      */
     while (wPFI_k.size() != 0) {
-      System.out.printf("There are %d candidates size %d", wPFI_k.size(), k);
+      System.out.printf("There are %d size-%d candidates.", wPFI_k.size(), k);
       System.out.println();
 
       List<HashSet<wPFIItem>> candidateK = wPFIAprioriGenerate(wPFI.get(k - 1));
@@ -95,6 +94,10 @@ public class wPFIApriori {
       wPFI.add(wPFI_k);
       k++;
     }
+
+    endTime = System.currentTimeMillis();
+    System.out.println("===========================================================");
+    System.out.printf("Total runtime: %dms", endTime - startTime);
   }
 
   /**
@@ -312,8 +315,6 @@ public class wPFIApriori {
    *
    * @param wPFI_K_1 the size-k-1 wPF itemsets
    * @return a list of size-k candidates itemsets.
-   *
-   *         TODO: fix the candidate size became max after generating
    */
   protected List<HashSet<wPFIItem>> wPFIAprioriGenerate(List<HashSet<wPFIItem>> wPFI_K_1) {
     List<HashSet<wPFIItem>> candidateK = new ArrayList<HashSet<wPFIItem>>();
@@ -323,13 +324,14 @@ public class wPFIApriori {
       I_.addAll(candidate);
     }
 
-    // Set<wPFIItem> differentSet = new HashSet<wPFIItem>();
-    // HashSet<wPFIItem> tempCandidate;
+    HashSet<wPFIItem> differentSet = new HashSet<>();
+    HashSet<wPFIItem> tempCandidate = new HashSet<>();
     // wPFIItem minI;
     // double argmin;
 
     for (HashSet<wPFIItem> candidate : wPFI_K_1) {
-      HashSet<wPFIItem> differentSet = new HashSet<wPFIItem>(I_);
+      // HashSet<wPFIItem> differentSet = new HashSet<wPFIItem>(I_);
+      differentSet.addAll(I_);
       differentSet.removeAll(candidate);
 
       // System.out.print(candidate.size() + "\t");
@@ -337,7 +339,8 @@ public class wPFIApriori {
 
       for (wPFIItem item : differentSet) {
         // HashSet<wPFIItem> tempCandidate = new HashSet<wPFIItem>(candidate);
-        HashSet<wPFIItem> tempCandidate = new HashSet<wPFIItem>(candidate);
+        // HashSet<wPFIItem> tempCandidate = new HashSet<wPFIItem>(candidate);
+        tempCandidate.addAll(candidate);
         tempCandidate.add(item);
 
         // System.out.println(tempCandidate.toString());
@@ -348,17 +351,19 @@ public class wPFIApriori {
         // if (verifyCandidate(candidateK, tempCandidate))
         // continue;
 
-        candidateK.add(tempCandidate);
+        candidateK.add(new HashSet<>(tempCandidate));
+        tempCandidate.clear();
       }
 
       double argmin = minWeightItemset(candidate);
 
-      differentSet = allItems;
+      differentSet.addAll(allItems);
       differentSet.removeAll(I_);
       // differentSet.removeAll(candidate);
 
       for (wPFIItem item : differentSet) {
-        HashSet<wPFIItem> tempCandidate = new HashSet<>(candidate);
+        // HashSet<wPFIItem> tempCandidate = new HashSet<>(candidate);
+        tempCandidate.addAll(candidate);
         tempCandidate.add(item);
 
         if (itemsetWeight(tempCandidate) < t)
@@ -368,8 +373,11 @@ public class wPFIApriori {
         // if (verifyCandidate(candidateK, tempCandidate))
         // continue;
 
-        candidateK.add(tempCandidate);
+        candidateK.add(new HashSet<>(tempCandidate));
+        tempCandidate.clear();
       }
+
+      differentSet.clear();
     }
 
     return candidateK;
@@ -377,8 +385,12 @@ public class wPFIApriori {
 
   public static void main(String[] args) throws IOException {
     UncertainDatabase database = new UncertainDatabase();
-    database.loadFile("./../../data/chess_test.dat");
+    database.loadFile("./../../data/connect.dat");
+
     wPFIApriori test = new wPFIApriori(database);
-    test.runAlgorithm(0.2, 0.6, 0.6);
+    double minsup = Double.parseDouble(args[0]);
+    double threshold = Double.parseDouble(args[1]);
+    double scale_factor = Double.parseDouble(args[2]);
+    test.runAlgorithm(minsup, threshold, scale_factor);
   }
 }
