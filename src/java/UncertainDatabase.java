@@ -6,15 +6,17 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * This class represents an uncertain database with existential probabilities,
  * as used by the wPFIApriori algorithm for uncertain itemset mining.
  *
- * @see wPFIApriori
- * @see wPFIItemset
- * @see wPFIItem
  * @author Nguyen Hoang Phuc (scuph-ng)
+ *
+ * @see wPFIApriori
+ * @see wPFIItem
  */
 public class UncertainDatabase {
   /**
@@ -57,7 +59,7 @@ public class UncertainDatabase {
    * @param path the directory of the file
    * @throws IOException exception if error while reading the file.
    */
-  public void loadFile(String path) throws IOException {
+  public void loadFile(String path, boolean hasProbability) throws IOException {
     String thisLine;
     BufferedReader myInput = null;
 
@@ -73,7 +75,10 @@ public class UncertainDatabase {
           continue;
         }
 
-        processTransactions(thisLine.split(" "));
+        if (hasProbability)
+          processTransactionsWithProbability(thisLine.split(" "));
+        else
+          processTransactions(thisLine.split(" "));
       }
     } catch (Exception e) {
       e.printStackTrace();
@@ -107,18 +112,57 @@ public class UncertainDatabase {
     transactions.add(transaction);
   }
 
+  private void processTransactionsWithProbability(String itemsString[]) {
+    HashSet<wPFIItem> transaction = new HashSet<>();
+    String pattern = "\\((\\d+),(\\d+\\.\\d+)\\)";
+
+    Pattern p = Pattern.compile(pattern);
+
+    for (String itemString : itemsString) {
+      try {
+        Matcher matcher = p.matcher(itemString);
+        if (!matcher.find())
+          continue;
+
+        int itemID = Integer.parseInt(matcher.group(1));
+        double value = Double.parseDouble(matcher.group(2));
+
+        if (value == 0)
+          continue;
+
+        wPFIItem item = new wPFIItem(itemID, value);
+        transaction.add(item);
+        allItems.add(item);
+      } catch (Exception e) {
+        e.printStackTrace();
+        return;
+      }
+    }
+
+    transactions.add(transaction);
+  }
+
   /**
    * Print this database to System.out.
    */
-  public void printDatabase() {
+  public void printDatabase(boolean hasProbability) {
     System.out.println("===================  UNCERTAIN DATABASE ===================");
     int count = 0;
-    // for each transaction
+
     for (HashSet<wPFIItem> itemset : transactions) {
-      // print the transaction
-      System.out.print("0" + count + ":  ");
-      System.out.println(itemset.toString());
-      System.out.println("");
+      System.out.print("0" + count + ":\t");
+
+      if (hasProbability) {
+        String str = "";
+
+        for (wPFIItem item : itemset)
+          str += item.toStringWithProbability();
+        System.out.print(str);
+
+      } else
+        System.out.print(itemset.toString());
+
+      System.out.println();
       count++;
     }
   }
