@@ -25,7 +25,7 @@ public class UncertainDatabase {
    */
   private final String file_name = new String();
   private final Set<wPFIItem> allItems = new HashSet<wPFIItem>();
-  private final List<wPFIItemset> transactions = new ArrayList<wPFIItemset>();
+  private final List<HashSet<wPFIItem>> transactions = new ArrayList<>();
 
   /**
    * Get the database size.
@@ -41,7 +41,7 @@ public class UncertainDatabase {
    *
    * @return the list of Transactions.
    */
-  public List<wPFIItemset> getTransactions() {
+  public List<HashSet<wPFIItem>> getTransactions() {
     return transactions;
   }
 
@@ -95,14 +95,14 @@ public class UncertainDatabase {
    * @param itemsString the list of items
    */
   private void processTransactions(String itemsString[]) {
-    wPFIItemset transaction = new wPFIItemset();
+    HashSet<wPFIItem> transaction = new HashSet<>();
 
     for (String itemString : itemsString) {
       int itemID = Integer.parseInt(itemString);
       double value = gaussianDistribution();
 
       wPFIItem item = new wPFIItem(itemID, value);
-      transaction.addItem(item);
+      transaction.add(item);
       allItems.add(item);
     }
 
@@ -116,10 +116,10 @@ public class UncertainDatabase {
     System.out.println("===================  UNCERTAIN DATABASE ===================");
     int count = 0;
     // for each transaction
-    for (wPFIItemset itemset : transactions) {
+    for (HashSet<wPFIItem> itemset : transactions) {
       // print the transaction
       System.out.print("0" + count + ":  ");
-      itemset.print();
+      System.out.println(itemset.toString());
       System.out.println("");
       count++;
     }
