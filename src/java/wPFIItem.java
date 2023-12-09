@@ -70,6 +70,13 @@ public class wPFIItem {
    * @return a string
    */
   public String toString() {
+    return getId() + " ";
+  }
+
+  /**
+   * Get a sting representation of this item and its probability/
+   */
+  public String toStringWithProbability() {
     return "" + getId() + " (" + probability + ")";
   }
 }
