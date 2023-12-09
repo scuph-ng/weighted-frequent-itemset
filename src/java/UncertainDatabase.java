@@ -5,8 +5,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import java.util.Random;
 
 /**
@@ -24,8 +22,8 @@ public class UncertainDatabase {
    * database.
    */
   private final String file_name = new String();
-  private final Set<wPFIItem> allItems = new HashSet<wPFIItem>();
-  private final List<HashSet<wPFIItem>> transactions = new ArrayList<>();
+  private final HashSet<wPFIItem> allItems = new HashSet<wPFIItem>();
+  private final ArrayList<HashSet<wPFIItem>> transactions = new ArrayList<>();
 
   /**
    * Get the database size.
@@ -41,7 +39,7 @@ public class UncertainDatabase {
    *
    * @return the list of Transactions.
    */
-  public List<HashSet<wPFIItem>> getTransactions() {
+  public ArrayList<HashSet<wPFIItem>> getTransactions() {
     return transactions;
   }
 
@@ -50,7 +48,7 @@ public class UncertainDatabase {
    *
    * @return a Set of Items
    */
-  public Set<wPFIItem> getAllItems() {
+  public HashSet<wPFIItem> getAllItems() {
     return allItems;
   }
 
