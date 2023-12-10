@@ -62,6 +62,8 @@ public class UncertainDatabase {
   public void loadFile(String path, boolean hasProbability) throws IOException {
     String thisLine;
     BufferedReader myInput = null;
+    int maxSize = 10000;
+    int lineCount = 0;
 
     try {
       FileInputStream fin = new FileInputStream(new File(path));
@@ -79,6 +81,10 @@ public class UncertainDatabase {
           processTransactionsWithProbability(thisLine.split(" "));
         else
           processTransactions(thisLine.split(" "));
+        
+        lineCount++;
+        if (lineCount >= maxSize)
+          break;
       }
     } catch (Exception e) {
       e.printStackTrace();
