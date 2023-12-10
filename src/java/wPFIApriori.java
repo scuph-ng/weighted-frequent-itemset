@@ -63,7 +63,7 @@ public class wPFIApriori {
    * @param scale_factor a float representing the scaling factor for the
    *                     probability model.
    */
-  public void runAlgorithm(float msup_ratio, float threshold, float scale_factor) {
+  public void runAlgorithm(float msup_ratio, float threshold, float scale_factor, boolean useProbabilityModel) {
     this.startTime = System.currentTimeMillis();
 
     this.k = 1;
@@ -83,7 +83,7 @@ public class wPFIApriori {
     wPFI.add(wPFI_k);
 
     while (wPFI_k.size() != 0) {
-      HashSet<HashSet<wPFIItem>> candidateK = wPFIAprioriGenerate(wPFI_k, false);
+      HashSet<HashSet<wPFIItem>> candidateK = wPFIAprioriGenerate(wPFI_k, useProbabilityModel);
 
       System.out.printf("There are %d\t size-%d candidates.\n", candidateK.size(), k);
 
@@ -94,7 +94,7 @@ public class wPFIApriori {
 
     endTime = System.currentTimeMillis();
     System.out.println("===========================================================");
-    System.out.printf("Total runtime: %dms", endTime - startTime);
+    System.out.printf("Total runtime: %ds", (int) (endTime - startTime) / 1000);
   }
 
   /**
@@ -316,7 +316,7 @@ public class wPFIApriori {
           continue;
         }
 
-        if (!useProbabilityModel || conditionAlgorithm3(candidate, item, mu_)) {
+        if (useProbabilityModel && conditionAlgorithm3(candidate, item, mu_)) {
           tempCandidate.clear();
           continue;
         }
@@ -344,7 +344,7 @@ public class wPFIApriori {
           tempCandidate.clear();
           continue;
         }
-        if (!useProbabilityModel || conditionAlgorithm3(candidate, item, mu_)) {
+        if (useProbabilityModel && conditionAlgorithm3(candidate, item, mu_)) {
           tempCandidate.clear();
           continue;
         }
@@ -407,24 +407,22 @@ public class wPFIApriori {
    * @return a double value representing the mu_ threshold.
    */
   protected double calculateMu_(double maxWeight, int lower, int upper) {
-    double epsilon = 1e-6;
-    double middle = (upper + lower) / 2;
+    double epsilon = 0.000001;
     double lowerDouble = (double) lower;
     double upperDouble = (double) upper;
 
     while (upperDouble - lowerDouble > epsilon) {
-      middle = (upperDouble + lowerDouble) / 2;
-      double value = 1 - CDF(minsup - 1, middle);
+      double value = 1 - CDF(minsup - 1, (upperDouble + lowerDouble) / 2.0) - t / maxWeight;
 
       if (value > 0)
-        upperDouble = middle;
+        upperDouble -= (upperDouble + lowerDouble) / 2.0;
       else if (value < 0)
-        lowerDouble = middle;
+        lowerDouble += (upperDouble + lowerDouble) / 2.0;
       else
         break;
     }
 
-    return middle;
+    return (upperDouble + lowerDouble) / 2.0;
   }
 
   /**
@@ -440,8 +438,16 @@ public class wPFIApriori {
    *         the conditions of the algorithm.
    */
   protected boolean conditionAlgorithm3(HashSet<wPFIItem> itemset, wPFIItem item, double mu_) {
+    if (itemset == null || item == null)
+      return false;
+
     HashSet<wPFIItem> itemWrapper = new HashSet<>();
     itemWrapper.add(item);
+
+    if (supportDict.get(itemset) == null)
+      Pr(itemset);
+    if (supportDict.get(itemWrapper) == null)
+      Pr(itemWrapper);
 
     double mu_X = supportDict.get(itemset);
     double mu_I = supportDict.get(itemWrapper);
@@ -464,8 +470,9 @@ public class wPFIApriori {
     float msup_ratio = Float.parseFloat(args[1]);
     float threshold = Float.parseFloat(args[2]);
     float scale_factor = Float.parseFloat(args[3]);
+    boolean useProbabilityModel = Boolean.parseBoolean(args[4]);
 
     wPFIApriori apriori = new wPFIApriori(database);
-    apriori.runAlgorithm(msup_ratio, threshold, scale_factor);
+    apriori.runAlgorithm(msup_ratio, threshold, scale_factor, useProbabilityModel);
   }
 }
