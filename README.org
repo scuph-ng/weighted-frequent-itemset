@@ -1,114 +1,28 @@
 #+title: Weighted Probabilistic Frequent Itemset
 #+author: scuph
 
-* Notations
-| Value | Description                                                                         |
-|-------+-------------------------------------------------------------------------------------|
-| DB    | An uncertain dataset of size n                                                      |
-| T     | A set of transaction identifiers                                                    |
-| I     | An itemset of size m                                                                |
-| p_ij  | An existential probability for item i-th in j-th transaction T_j                    |
-| w     | A weight table for the itemset I                                                    |
-| esup  | An integer (0, n], the minimum support for expected support-based FI mining         |
-| msup  | An integer (0, n], the minimum support for probabilistic FI mining                  |
-| t     | A real value (0, 1], the probablistic frequen threshold for probabilistic FI mining |
-| alpha | A real value [0, 1], the scale factor                                               |
+* Introduction
+ - This repository is the implementation of the paper "Efficient weighted frequent itemset mining in uncertain datasets".
+** Repository structure
+ - The repository contains three folders.
+ - Folder [[doc]] contains the origin paper and out reflection report.
+ - Folder [[src]] contains the implementation in two languages: Java and Python.
+ - Folder [[data]] contains the datasets that used in the testing process.
 
+* How to run
+** Python
+*Under Maintenance.*
 
-* Definition
-** 1. Uncertain dataset
- - An uncertain dataset DB is a function from the domain TxI to the interval [0, 1] where T is a transaction identifier set, and I is an itemset
- - weight table w is a dictionary that contains items from the itemset I and their correspond weight
+** Java
+ - The implemented java code require some arguments to excute properly
+#+begin_src bash
+java wPFIApriori [dataset_name] [msup_ratio] [threshold] [scale_factor] [use_probability_model]
+#+end_src
 
-** 2. Possible world
- - For a given uncertain dataset DB, TxI -> [0, 1], a possible world W_i is a subset of the domain TxI, with an existential probability
- - Pr(W_i) = product(i for i in T and T in W_i) * product((1 - i) for i in T and T not in W_i) [1]
-
-** 3. Expected support-based frequent itemset
- - Given uncertain dataset DB and a minimum expected support, esup, a set of items, or an itemset X in I
-   - X is an expected support-based itemset if and only if sum(Pr(W_i)*S(X, W_i)) >= esup
- - S(X, W_i) is the support of the itemset X in the possible world W_i
-
-** 4. Probabilistic frequent itemset
- - Given uncertain dataset DB, a minimum support, msup, and a probabilistic frequent threshold t, an itemset X in I
-   - X is PFI if and only if Pr(sup(X) >= msup) >= t
- - Pr(sup(X) >= msup) is obtained by the s-pmf of itemset X over the possible worlds, which follow Pr(sup(X) >= msup) = sum(Pr(W_i) for W_i in W and S(X, W_i) >= msup)
- - Pr(sup(X) >= msup) =
-   sum(product(Pr(X in t for t in T') * product(1 - Pr(X in t for t in T - T')))) [2]
- - len(T') >= msup means there are at least msup itemset X in the transaction T'.
-
-** 5. Weighted probabilistic frequent itemset
- - Given an uncertain dataset DB, a weight table w, a minimum support, msup and a probabilistic threshold t, an itemset X in I
-   - X is a w_PFI if and only if w(X).Pr(sup(X) >= msup) >= t
- - w(X) is the weight of itemset X
-
-** 6. Itemset weight
- - Itemset weight is the average weight of every item in the itemset
- - w(X) = sum(w(i) for i in X) / len(X)
-
-* Theorem
-** 1. Equivalent between PFI and w-PFI
- - An itemset X is a w-PFI under a probabilistic frequent threshold t, if and only if the itemset X is a PFI under a probabilistic frequent threshold t/w(X)
- - Let the itemset X, its weight table w, and I_s is the item with the smallest weight.
-   - X' = X - I_s is one of the sub-itemset of X
-   - w(I_s) <= w(X) <= w(X')
- - Given a msup, and a probabilistic frequent threshold t,
-
-** 2. Anti-monotonicity property for PFI
- - If an itemset X is a PFI, then any itemset X' in X is also a PFI
-
-** 3. Anti-monotonicity property for weighted PFI
- - If an itemset X is a w-PFI, len(X) = k, then there is at least one itemset X' in X, len(X') = k-1 is a w-PFI
- - Let the itemset X, its weight table w, and I_s is the term with the smallest weight. Then the itemset X' = X - I_s is one of the sub-itemset of X because w(I_s) <= w(X) <= w(X')
- - Given a msup, and a probabilistic frequent theshold t, we will obtain w(X').P(sup(X') >= msup) < t
-** 4.
- - For an itemset X, the support of X denoted by Sup(X) is a random variable, following a Poisson binomial distribution
-   - a Poisson binomial distribution is approximated by a Poisson distribution
- - Sup(X) ~ PBD(mu, sigma^2)
-   - mu = sum(p_X[i]) for i in range(1, n)
-   - sigma^2 = sum(p_X[i] * (1 - p_X[i])) for i in range(1, n)
- - p_X[i] = Pr(X in T[i]) is the probability of the itemset X in the transaction T[i]
- - Sup(X) is the sum of Sup(X) in each transaction in DB
- - Given a msup, the frequentness probability of an itemset X can by computed by Pr(Sup(X) >= msup) = 1 - F(msup - 1, mu_X) where F is the cumulative distribution fuction (cdf) of Poisson distribution
-** 5.
- - For an itemset X, and a msup, the frequentness probability Pr(Sup(X) >= msup) increases monotonically with mu_X
- - Poisson binomial distribution can also be approximated by a Normal distribution. To achieve it, the mean and variance of Sup(X) should be estimated and then compute the probability Pr(Sup(X) >= msup) by the cdf of standard Normal distribution. After that, compare the probability with the minimum probabilistic frequent threshold t to determine X is a wPFI candidate or not
- -
-** 6.
- - For two itemsets X and Y, Sup(X) ~ PBD(mu_1, sigma_1^2), Sup(Y) ~ PBD(mu_2, sigma_2^2)
- - The support of their union set Sup(X + Y) will also follow a Poisson binomial distribution Sup(Y) ~ PBD(mu, sigma^2)
-   - mu = sum(p_X[i] * p_Y[i]) for i in range(n)
-   - sigma = sum(p_X[i] * p_Y[i] * (1 - p_X[i] * p_Y[i])) for i in range(n)
-   - if the two itemsets X and Y satisfy the intersection between them is None
-
- - mu_XY <= min(mu_X, mu_Y)
-
-* Corollary
-** 1.
- - Given a wPFI X in WPFI_(k-1), the itemset I and the weight table w, an itemset X' = X + I_s is not a wPFI if w(I_s) >= min(w(x) for x in X) and I_s in (I - I_s), where I' is the set of items in WPFI_(k-1)
-** 2.
- - Given an itemset X, an item I_s, the weight table w, msup, and t.
-   - X' = X + I_s is not a wPFI if min(mu_X, mu_I_s) < mu'
-   - mu' is the solution of the equation 1 - F(msup - 1, mu) = t/m, m = max(w(X), w(I_s))
- - This corollary can be directly added in line 5 and line 11 of Algorithm 2 to remove the non-wPFI at once, as a complement of the first pruning method
-** 3.
- - Given an itemset X, an item I_s, weight table w, msup, t
-   - X' = X + I_s is probably not a wPFI if mu_X * mu_I_s / n < alpha * mu'
-   - n is number of transactions
-   - alpha in range(0, 1] is the scale factor
-   - mu' is the solution in Corollary 2
-
-* Algorithm
-** 1. wPFI-Apriori algorithm
- - lines 2 and 7 is to verify whether the itemsets in the candidate set are true weighted PFI or not. [Theorem 1]
- - the implemetation of dynamic programming to compute P(sup(X) >= msup) can be found in the paper (Bernecker et al., 2009)
- - The main task of line 6 is to generate wPFI candidates based on the true wPFI in the former loop
- - Let I_m = min(w(x) for x in X). The itemset X' = (X - I_m) + I_s is not a size (k-1)wPFI since I_s is not a member of I'
- - w(I_j) < w(I_m) in line 11 to prune the non-weighted PFI
-
-** 2. wPFI candidate generation and pruning
- - Determine the itemset X + I_i is a wPFI or not by the statistical properties of X and I_i
- - Probability model in Theorem 4 to represent the s-pmf
- - Theorem 6 contains the probability model for the support of a wPFI candidate, and two candidate pruning methods based on the model
- - Given an uncertain dataset DB, TxI -> [0, 1]. Each itemset X in I will be associated with n random variables V_1, ..., V_n where n = len(T)
- - V_i is a Poisson trail with the success probability of Pr(X in T_j)
+| Argument              | Value                          | Details                                                        |
+|-----------------------+--------------------------------+----------------------------------------------------------------|
+| dataset_name          | String                         | name of the dataset in /data/ folder.                          |
+| msup_ratio            | float ( 0 <= msup_ratio <= 1 ) | ratio of minimum support compared to the dataset size.         |
+| threshold             | float ( 0 <= threshold <= 1 )  | the probabilistic frequent threshold.                          |
+| scale_factor          | float ( 0 < scale_factor <= 1) | scale factor that used within the probability model.           |
+| use_probability_model | boolean                        | indicate the whether the algorithm use the probabiblity model. |
