@@ -26,3 +26,8 @@ java wPFIApriori [dataset_name] [msup_ratio] [threshold] [scale_factor] [use_pro
 | threshold             | float ( 0 <= threshold <= 1 )  | the probabilistic frequent threshold.                          |
 | scale_factor          | float ( 0 < scale_factor <= 1) | scale factor that used within the probability model.           |
 | use_probability_model | boolean                        | indicate the whether the algorithm use the probabiblity model. |
+
+* Contributors
+ - Nguyen Hoang Phuc [521H0511]
+ - Bui Hai Duong [521H0220]
+ - Bui Anh Phu [521H0508]
