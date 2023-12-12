@@ -23,6 +23,7 @@ public class UncertainDatabase {
    * Define the list of transactions and the set of items that exist in the
    * database.
    */
+  private double transactionSize = 0;
   private final HashSet<wPFIItem> allItems = new HashSet<wPFIItem>();
   private final ArrayList<HashSet<wPFIItem>> transactions = new ArrayList<>();
 
@@ -53,6 +54,10 @@ public class UncertainDatabase {
     return allItems;
   }
 
+  public double getTransactionSize() {
+    return transactionSize;
+  }
+
   /**
    * Load a transaction database from a file.
    *
@@ -81,7 +86,7 @@ public class UncertainDatabase {
           processTransactionsWithProbability(thisLine.split(" "));
         else
           processTransactions(thisLine.split(" "));
-        
+
         lineCount++;
         if (lineCount >= maxSize)
           break;
@@ -94,6 +99,7 @@ public class UncertainDatabase {
       }
     }
 
+    transactionSize /= transactions.size();
     printDatabaseProperties(path);
   }
 
@@ -115,6 +121,7 @@ public class UncertainDatabase {
       allItems.add(item);
     }
 
+    transactionSize += transaction.size();
     transactions.add(transaction);
   }
 
@@ -145,6 +152,7 @@ public class UncertainDatabase {
       }
     }
 
+    transactionSize += transaction.size();
     transactions.add(transaction);
   }
 
