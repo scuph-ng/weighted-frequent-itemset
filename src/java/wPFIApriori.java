@@ -30,9 +30,10 @@ public class wPFIApriori {
 
   protected float t;
   protected float alpha;
+  protected double transactionSize;
 
-  protected long startTime;
-  protected long endTime;
+  private long startTime;
+  private long endTime;
 
   /**
    * Constructor
@@ -47,6 +48,7 @@ public class wPFIApriori {
      */
     databaseSize = database.size();
     allItems = new HashSet<>(database.getAllItems());
+    transactionSize = database.getTransactionSize();
 
     /**
      * TODO: create a method to define whether
@@ -316,9 +318,11 @@ public class wPFIApriori {
           continue;
         }
 
-        if (useProbabilityModel && conditionAlgorithm3(candidate, item, mu_)) {
-          tempCandidate.clear();
-          continue;
+        if (useProbabilityModel) {
+          if (!conditionAlgorithm3(candidate, item, mu_)) {
+            tempCandidate.clear();
+            continue;
+          }
         }
 
         candidateK.add(new HashSet<>(tempCandidate));
@@ -344,9 +348,11 @@ public class wPFIApriori {
           tempCandidate.clear();
           continue;
         }
-        if (useProbabilityModel && conditionAlgorithm3(candidate, item, mu_)) {
-          tempCandidate.clear();
-          continue;
+        if (useProbabilityModel) {
+          if (!conditionAlgorithm3(candidate, item, mu_)) {
+            tempCandidate.clear();
+            continue;
+          }
         }
 
         candidateK.add(new HashSet<>(tempCandidate));
@@ -455,7 +461,7 @@ public class wPFIApriori {
     if (mu_X < mu_ || mu_I < mu_)
       return false;
 
-    if (mu_X * mu_I < alpha * databaseSize * mu_)
+    if (mu_X * mu_I < alpha * transactionSize * mu_)
       return false;
 
     return true;
