@@ -15,7 +15,7 @@ import java.util.Random;
  * @see UncertainDatabase
  * @see wPFIItem
  */
-public class wPFIApriori {
+public class wPFIApriori implements wPFIAprioriInterface{
   /**
    * Define the neccesary variables for the algorithm
    */
@@ -65,6 +65,7 @@ public class wPFIApriori {
    * @param scale_factor a float representing the scaling factor for the
    *                     probability model.
    */
+  @Override
   public void runAlgorithm(float msup_ratio, float threshold, float scale_factor, boolean useProbabilityModel) {
     this.startTime = System.currentTimeMillis();
 
@@ -106,7 +107,8 @@ public class wPFIApriori {
    * @return a HashMap of integer keys and double values representing the weight
    *         of each item.
    */
-  protected HashMap<Integer, Double> generateWeightTable() {
+  @Override
+  public HashMap<Integer, Double> generateWeightTable() {
     HashMap<Integer, Double> weightTable = new HashMap<Integer, Double>();
     Random random = new Random();
 
@@ -125,7 +127,8 @@ public class wPFIApriori {
    * @return a double value representing the average weight of the items in the
    *         itemset.
    */
-  protected double itemsetWeight(HashSet<wPFIItem> itemset) {
+  @Override
+  public double itemsetWeight(HashSet<wPFIItem> itemset) {
     double sumWeight = 0;
 
     for (wPFIItem item : itemset) {
@@ -140,7 +143,8 @@ public class wPFIApriori {
    *
    * @return a HashSet of HashSet of wPFIItem objects representing FPIs of size 1.
    */
-  protected HashSet<HashSet<wPFIItem>> scanFindSize1() {
+  @Override
+  public HashSet<HashSet<wPFIItem>> scanFindSize1() {
     HashSet<HashSet<wPFIItem>> new_candidates = new HashSet<HashSet<wPFIItem>>();
 
     HashSet<wPFIItem> candidate = new HashSet<wPFIItem>();
@@ -167,7 +171,8 @@ public class wPFIApriori {
    *
    * @return a HashSet of HashSet of wPFIItem objects representing FPIs of size k.
    */
-  protected HashSet<HashSet<wPFIItem>> scanFindSizeK(HashSet<HashSet<wPFIItem>> wPFI_k) {
+  @Override
+  public HashSet<HashSet<wPFIItem>> scanFindSizeK(HashSet<HashSet<wPFIItem>> wPFI_k) {
     HashSet<HashSet<wPFIItem>> new_candidates = new HashSet<HashSet<wPFIItem>>();
 
     for (HashSet<wPFIItem> candidate : wPFI_k) {
@@ -192,7 +197,8 @@ public class wPFIApriori {
    * @return a double value representing the probability of the given itemset
    *         occurring in the specified transaction.
    */
-  protected double itemsetSupportInTransaction(int j, HashSet<wPFIItem> itemset) {
+  @Override
+  public double itemsetSupportInTransaction(int j, HashSet<wPFIItem> itemset) {
     HashSet<wPFIItem> transaction = db.getTransactions().get(j);
 
     if (itemset.size() > transaction.size())
@@ -225,7 +231,8 @@ public class wPFIApriori {
    * @return a double value representing the probability of the given itemset
    *         occurring in a transaction.
    */
-  protected double Pr(HashSet<wPFIItem> itemset) {
+  @Override
+  public double Pr(HashSet<wPFIItem> itemset) {
     double[][] P = new double[minsup + 1][databaseSize + 1];
     double mu_itemset = 0;
 
@@ -262,7 +269,8 @@ public class wPFIApriori {
    * @return a double value representing the minimum weight of any item in the
    *         given itemset.
    */
-  protected double minWeightItemset(HashSet<wPFIItem> itemset) {
+  @Override
+  public double minWeightItemset(HashSet<wPFIItem> itemset) {
     double minWeight = 1.1;
     double itemWeight;
 
@@ -290,7 +298,8 @@ public class wPFIApriori {
    * @return a HashSet of HashSet of wPFIItem objects representing candidate
    *         PFI of size k.
    */
-  protected HashSet<HashSet<wPFIItem>> wPFIAprioriGenerate(HashSet<HashSet<wPFIItem>> wPFI_K_1,
+  @Override
+  public HashSet<HashSet<wPFIItem>> wPFIAprioriGenerate(HashSet<HashSet<wPFIItem>> wPFI_K_1,
       boolean useProbabilityModel) {
     HashSet<HashSet<wPFIItem>> candidateK = new HashSet<HashSet<wPFIItem>>();
 
@@ -372,7 +381,8 @@ public class wPFIApriori {
    *          factorial is to be calculated.
    * @return a double value representing the factorial of n.
    */
-  protected double factorial(int n) {
+  @Override
+  public double factorial(int n) {
     if (n == 0 || n == 1)
       return 1.0;
 
@@ -391,7 +401,8 @@ public class wPFIApriori {
    *
    * @return a double value representing the CDF at step k.
    */
-  protected double CDF(int k, double lambda) {
+  @Override
+  public double CDF(int k, double lambda) {
     double result = 0;
     for (int i = 0; i <= k; i++) {
       result += Math.pow(lambda, i) / factorial(i);
@@ -412,7 +423,8 @@ public class wPFIApriori {
    *                  search.
    * @return a double value representing the mu_ threshold.
    */
-  protected double calculateMu_(double maxWeight, int lower, int upper) {
+  @Override
+  public double calculateMu_(double maxWeight, int lower, int upper) {
     double epsilon = 0.000001;
     double lowerDouble = (double) lower;
     double upperDouble = (double) upper;
@@ -443,7 +455,8 @@ public class wPFIApriori {
    * @return a boolean flag indicating whether the given itemset and item satisfy
    *         the conditions of the algorithm.
    */
-  protected boolean conditionAlgorithm3(HashSet<wPFIItem> itemset, wPFIItem item, double mu_) {
+  @Override
+  public boolean conditionAlgorithm3(HashSet<wPFIItem> itemset, wPFIItem item, double mu_) {
     if (itemset == null || item == null)
       return false;
 

@@ -124,7 +124,7 @@ public class UncertainDatabase {
     transactionSize += transaction.size();
     transactions.add(transaction);
   }
-
+  
   private void processTransactionsWithProbability(String itemsString[]) {
     HashSet<wPFIItem> transaction = new HashSet<>();
     String pattern = "\\((\\d+),(\\d+\\.\\d+)\\)";
