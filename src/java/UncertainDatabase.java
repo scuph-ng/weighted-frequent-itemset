@@ -18,14 +18,14 @@ import java.util.regex.Pattern;
  * @see wPFIApriori
  * @see wPFIItem
  */
-public class UncertainDatabase {
+class UncertainDatabase {
   /**
    * Define the list of transactions and the set of items that exist in the
    * database.
    */
-  private double transactionSize = 0;
-  private final HashSet<wPFIItem> allItems = new HashSet<wPFIItem>();
-  private final ArrayList<HashSet<wPFIItem>> transactions = new ArrayList<>();
+  double transactionSize = 0;
+  HashSet<wPFIItem> allItems = new HashSet<wPFIItem>();
+  ArrayList<HashSet<wPFIItem>> transactions = new ArrayList<>();
 
   /**
    * Get the database size.
@@ -109,7 +109,7 @@ public class UncertainDatabase {
    *
    * @param itemsString the list of items
    */
-  private void processTransactions(String itemsString[]) {
+  public void processTransactions(String itemsString[]) {
     HashSet<wPFIItem> transaction = new HashSet<>();
 
     for (String itemString : itemsString) {
@@ -125,7 +125,7 @@ public class UncertainDatabase {
     transactions.add(transaction);
   }
   
-  private void processTransactionsWithProbability(String itemsString[]) {
+  public void processTransactionsWithProbability(String itemsString[]) {
     HashSet<wPFIItem> transaction = new HashSet<>();
     String pattern = "\\((\\d+),(\\d+\\.\\d+)\\)";
 
@@ -196,7 +196,7 @@ public class UncertainDatabase {
    * Means is 0.5.
    * Variance is 0.125.
    */
-  private static double gaussianDistribution() {
+  public static double gaussianDistribution() {
     Random random = new Random();
     double prob = random.nextGaussian() * Math.sqrt(0.125) + 0.5;
 

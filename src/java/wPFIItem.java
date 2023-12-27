@@ -3,12 +3,12 @@
  * as used by the wPFIApriori algorithm for uncertain itemset mining.
  *
  * @author Nguyen Hoang Phuc (scuph-ng)
- * 
+ *
  * @see UncertainDatabase
  * @see wPFIApriori
  * @see wPFIItemset
  */
-public class wPFIItem {
+class wPFIItem {
   private final int id;
   private final double probability;
 
@@ -48,6 +48,9 @@ public class wPFIItem {
    * @return true if equal, otherwise false.
    */
   public boolean equals(Object object) {
+    if (!(object instanceof wPFIItem))
+      return false;
+
     wPFIItem anotherItem = (wPFIItem) object;
     if ((anotherItem.getId() == this.getId())) {
       return true;

@@ -15,46 +15,40 @@ import java.util.Random;
  * @see UncertainDatabase
  * @see wPFIItem
  */
-public class wPFIApriori implements wPFIAprioriInterface{
-  /**
-   * Define the neccesary variables for the algorithm
-   */
-  protected UncertainDatabase db;
-  protected HashSet<wPFIItem> allItems;
-  protected HashMap<Integer, Double> weightTable;
-  protected HashMap<HashSet<wPFIItem>, Double> supportDict = new HashMap<>();
+// class wPFIApriori implements wPFIAprioriInterface
+class wPFIApriori
+{
+  UncertainDatabase database;
+  HashSet<wPFIItem> allItems;
+  HashMap<Integer, Double> weightTable;
+  HashMap<HashSet<wPFIItem>, Double> supportDict = new HashMap<>();
 
-  protected int k;
-  protected int minsup;
-  protected int databaseSize;
+  public static void main(String[] args) throws IOException
+  {
+    String pathWrapper = "./../../data/" + args[0] + ".dat";
 
-  protected float t;
-  protected float alpha;
-  protected double transactionSize;
+    UncertainDatabase database = new UncertainDatabase();
+    database.loadFile(pathWrapper, false);
 
-  private long startTime;
-  private long endTime;
+    float msup_ratio = Float.parseFloat(args[1]);
+    float threshold = Float.parseFloat(args[2]);
+    float scale_factor = Float.parseFloat(args[3]);
+    boolean useProbabilityModel = Boolean.parseBoolean(args[4]);
+
+    wPFIApriori apriori = new wPFIApriori(database);
+    apriori.runAlgorithm(msup_ratio, threshold, scale_factor, useProbabilityModel, database);
+  }
 
   /**
    * Constructor
    *
    * @param database an UncertainDatabase object representing the loaded database.
    */
-  public wPFIApriori(UncertainDatabase database) {
-    db = database;
-
-    /**
-     * Assign the properties of the database.
-     */
-    databaseSize = database.size();
-    allItems = new HashSet<>(database.getAllItems());
-    transactionSize = database.getTransactionSize();
-
-    /**
-     * TODO: create a method to define whether
-     * generate a weight table is necessary or not.
-     */
-    weightTable = generateWeightTable();
+  public wPFIApriori(UncertainDatabase database)
+  {
+    this.database = database;
+    allItems = database.getAllItems();
+    weightTable = generateWeightTable(allItems);
   }
 
   /**
@@ -65,37 +59,36 @@ public class wPFIApriori implements wPFIAprioriInterface{
    * @param scale_factor a float representing the scaling factor for the
    *                     probability model.
    */
-  @Override
-  public void runAlgorithm(float msup_ratio, float threshold, float scale_factor, boolean useProbabilityModel) {
-    this.startTime = System.currentTimeMillis();
-
-    this.k = 1;
-    this.t = threshold;
-    this.minsup = (int) Math.round(msup_ratio * databaseSize);
-    this.alpha = scale_factor;
+  // @Override
+  public void runAlgorithm(
+    float msup_ratio,
+    float threshold,
+    float scale_factor,
+    boolean useProbabilityModel,
+    UncertainDatabase database
+  ) {
+    long startTime = System.currentTimeMillis();
+    int k = 1;
+    int minsup = (int) Math.round(msup_ratio * database.size());
 
     System.out.println("===========================================================");
     System.out.println("Minimum support ratio: " + msup_ratio);
     System.out.println("Confidence threshold: " + threshold);
-
-    ArrayList<HashSet<HashSet<wPFIItem>>> wPFI = new ArrayList<>();
-
     System.out.println("===========================================================");
 
-    HashSet<HashSet<wPFIItem>> wPFI_k = scanFindSize1();
+    ArrayList<HashSet<HashSet<wPFIItem>>> wPFI = new ArrayList<>();
+    HashSet<HashSet<wPFIItem>> wPFI_k = scanFindSize1(supportDict, weightTable, database, threshold, minsup);
     wPFI.add(wPFI_k);
 
     while (wPFI_k.size() != 0) {
-      HashSet<HashSet<wPFIItem>> candidateK = wPFIAprioriGenerate(wPFI_k, useProbabilityModel);
-
-      System.out.printf("There are %d\t size-%d candidates.\n", candidateK.size(), k);
-
-      wPFI_k = scanFindSizeK(candidateK);
+      HashSet<HashSet<wPFIItem>> candidateK = wPFIAprioriGenerate(supportDict, wPFI_k, weightTable, database, useProbabilityModel, threshold, scale_factor, minsup);
+      System.out.printf("There are\t%d\t size-%d candidates.\n", candidateK.size(), k);
+      wPFI_k = scanFindSizeK(supportDict, weightTable, candidateK, database, threshold, minsup);
       wPFI.add(wPFI_k);
       k++;
     }
 
-    endTime = System.currentTimeMillis();
+    long endTime = System.currentTimeMillis();
     System.out.println("===========================================================");
     System.out.printf("Total runtime: %ds", (int) (endTime - startTime) / 1000);
   }
@@ -107,8 +100,9 @@ public class wPFIApriori implements wPFIAprioriInterface{
    * @return a HashMap of integer keys and double values representing the weight
    *         of each item.
    */
-  @Override
-  public HashMap<Integer, Double> generateWeightTable() {
+  // @Override
+  static HashMap<Integer, Double> generateWeightTable(HashSet<wPFIItem> allItems)
+  {
     HashMap<Integer, Double> weightTable = new HashMap<Integer, Double>();
     Random random = new Random();
 
@@ -127,8 +121,11 @@ public class wPFIApriori implements wPFIAprioriInterface{
    * @return a double value representing the average weight of the items in the
    *         itemset.
    */
-  @Override
-  public double itemsetWeight(HashSet<wPFIItem> itemset) {
+  // @Override
+  static double itemsetWeight(
+    HashMap<Integer, Double> weightTable,
+    HashSet<wPFIItem> itemset
+  ) {
     double sumWeight = 0;
 
     for (wPFIItem item : itemset) {
@@ -143,23 +140,28 @@ public class wPFIApriori implements wPFIAprioriInterface{
    *
    * @return a HashSet of HashSet of wPFIItem objects representing FPIs of size 1.
    */
-  @Override
-  public HashSet<HashSet<wPFIItem>> scanFindSize1() {
+  // @Override
+  static HashSet<HashSet<wPFIItem>> scanFindSize1(
+    HashMap<HashSet<wPFIItem>, Double> supportDict,
+    HashMap<Integer, Double> weightTable,
+    UncertainDatabase database,
+    float threshold,
+    int minsup
+  ) {
+    HashSet<wPFIItem> allItems = database.getAllItems();
     HashSet<HashSet<wPFIItem>> new_candidates = new HashSet<HashSet<wPFIItem>>();
-
     HashSet<wPFIItem> candidate = new HashSet<wPFIItem>();
+
     for (wPFIItem item : allItems) {
       candidate.add(item);
-
       double candidate_weight = weightTable.get(item.getId());
-      double candidate_confidence = Pr(candidate);
+      double candidate_confidence = Pr(supportDict, database, candidate, threshold, minsup);
 
-      if (candidate_confidence * candidate_weight >= t)
+      if (candidate_confidence * candidate_weight >= threshold)
         new_candidates.add(candidate);
 
       candidate.clear();
     }
-
     return new_candidates;
   }
 
@@ -171,18 +173,24 @@ public class wPFIApriori implements wPFIAprioriInterface{
    *
    * @return a HashSet of HashSet of wPFIItem objects representing FPIs of size k.
    */
-  @Override
-  public HashSet<HashSet<wPFIItem>> scanFindSizeK(HashSet<HashSet<wPFIItem>> wPFI_k) {
+  // @Override
+  static HashSet<HashSet<wPFIItem>> scanFindSizeK(
+    HashMap<HashSet<wPFIItem>, Double> supportDict,
+    HashMap<Integer, Double> weightTable,
+    HashSet<HashSet<wPFIItem>> wPFI_k,
+    UncertainDatabase database,
+    float threshold,
+    int minsup
+  ) {
     HashSet<HashSet<wPFIItem>> new_candidates = new HashSet<HashSet<wPFIItem>>();
 
     for (HashSet<wPFIItem> candidate : wPFI_k) {
-      double candidate_weight = itemsetWeight(candidate);
-      double candidate_confidence = Pr(candidate);
+      double candidate_weight = itemsetWeight(weightTable, candidate);
+      double candidate_confidence = Pr(supportDict, database, candidate, threshold, minsup);
 
-      if (candidate_confidence * candidate_weight >= t)
+      if (candidate_confidence * candidate_weight >= threshold)
         new_candidates.add(candidate);
     }
-
     return new_candidates;
   }
 
@@ -197,15 +205,18 @@ public class wPFIApriori implements wPFIAprioriInterface{
    * @return a double value representing the probability of the given itemset
    *         occurring in the specified transaction.
    */
-  @Override
-  public double itemsetSupportInTransaction(int j, HashSet<wPFIItem> itemset) {
-    HashSet<wPFIItem> transaction = db.getTransactions().get(j);
+  // @Override
+  static double itemsetSupportInTransaction(
+    UncertainDatabase database,
+    HashSet<wPFIItem> itemset,
+    int j
+  ) {
+    HashSet<wPFIItem> transaction = database.getTransactions().get(j);
 
     if (itemset.size() > transaction.size())
       return 0;
 
     double probability = 1;
-
     for (wPFIItem item : itemset) {
       boolean found = false;
 
@@ -216,7 +227,6 @@ public class wPFIApriori implements wPFIAprioriInterface{
           break;
         }
       }
-
       if (!found)
         return 0;
     }
@@ -231,26 +241,31 @@ public class wPFIApriori implements wPFIAprioriInterface{
    * @return a double value representing the probability of the given itemset
    *         occurring in a transaction.
    */
-  @Override
-  public double Pr(HashSet<wPFIItem> itemset) {
+  // @Override
+  static double Pr(
+    HashMap<HashSet<wPFIItem>, Double> supportDict,
+    UncertainDatabase database,
+    HashSet<wPFIItem> itemset,
+    double threshold,
+    int minsup
+  ) {
+    int databaseSize = database.size();
     double[][] P = new double[minsup + 1][databaseSize + 1];
+    double[] probabilities = new double[databaseSize];
     double mu_itemset = 0;
 
-    double[] probabilities = new double[databaseSize];
-
     for (int i = 0; i < databaseSize; i++) {
-      probabilities[i] = itemsetSupportInTransaction(i, itemset);
+      probabilities[i] = itemsetSupportInTransaction(database, itemset, i);
       mu_itemset += probabilities[i];
     }
-
     supportDict.put(itemset, mu_itemset);
-
+    
     for (int j = 0; j <= databaseSize; j++) {
       P[0][j] = 1.0;
     }
 
     for (int i = 1; i <= minsup; i++) {
-      if (P[i - 1][databaseSize - minsup + i] < t) {
+      if (P[i - 1][databaseSize - minsup + i] < threshold) {
         return 0.0;
       }
 
@@ -269,8 +284,11 @@ public class wPFIApriori implements wPFIAprioriInterface{
    * @return a double value representing the minimum weight of any item in the
    *         given itemset.
    */
-  @Override
-  public double minWeightItemset(HashSet<wPFIItem> itemset) {
+  // @Override
+  static double minWeightItemset(
+    HashMap<Integer, Double> weightTable, 
+    HashSet<wPFIItem> itemset
+  ) {
     double minWeight = 1.1;
     double itemWeight;
 
@@ -281,7 +299,6 @@ public class wPFIApriori implements wPFIAprioriInterface{
         minWeight = itemWeight;
       }
     }
-
     return minWeight;
   }
 
@@ -293,26 +310,36 @@ public class wPFIApriori implements wPFIAprioriInterface{
    *                            representing the
    *                            frequent itemsets of size k-1.
    * @param useProbabilityModel a boolean flag indicating whether to use the
-   *                            probability model for filtering candiate itemset.
+   *                            probability model for filtering candidate itemset.
    *
    * @return a HashSet of HashSet of wPFIItem objects representing candidate
    *         PFI of size k.
    */
-  @Override
-  public HashSet<HashSet<wPFIItem>> wPFIAprioriGenerate(HashSet<HashSet<wPFIItem>> wPFI_K_1,
-      boolean useProbabilityModel) {
+  // @Override
+  static HashSet<HashSet<wPFIItem>> wPFIAprioriGenerate(
+    HashMap<HashSet<wPFIItem>, Double> supportDict,
+    HashSet<HashSet<wPFIItem>> wPFI_K_1,
+    HashMap<Integer, Double> weightTable, 
+    UncertainDatabase database,
+    boolean useProbabilityModel,
+    float threshold,
+    float alpha,
+    int minsup
+  ) {
+    HashSet<wPFIItem> allItems = database.getAllItems();
     HashSet<HashSet<wPFIItem>> candidateK = new HashSet<HashSet<wPFIItem>>();
-
     HashSet<wPFIItem> I_ = new HashSet<wPFIItem>();
     HashSet<wPFIItem> differentSet = new HashSet<>();
     HashSet<wPFIItem> tempCandidate = new HashSet<>();
+
+    int databaseSize = database.size();
 
     for (HashSet<wPFIItem> candidate : wPFI_K_1) {
       I_.addAll(candidate);
     }
 
     double maxWeight = Collections.max(weightTable.values());
-    double mu_ = calculateMu_(maxWeight, 0, databaseSize);
+    double mu_ = calculateMu_(0, databaseSize, minsup, threshold, maxWeight);
 
     for (HashSet<wPFIItem> candidate : wPFI_K_1) {
       differentSet.addAll(I_);
@@ -322,34 +349,31 @@ public class wPFIApriori implements wPFIAprioriInterface{
         tempCandidate.addAll(candidate);
         tempCandidate.add(item);
 
-        if (itemsetWeight(tempCandidate) < t) {
+        if (itemsetWeight(weightTable, tempCandidate) < threshold) {
           tempCandidate.clear();
           continue;
         }
 
         if (useProbabilityModel) {
-          if (!conditionAlgorithm3(candidate, item, mu_)) {
+          if (!conditionAlgorithm3(supportDict, database, candidate, item, mu_, alpha, threshold, minsup)) {
             tempCandidate.clear();
             continue;
           }
         }
-
         candidateK.add(new HashSet<>(tempCandidate));
         tempCandidate.clear();
       }
 
-      double argmin = minWeightItemset(candidate);
-
+      double argmin = minWeightItemset(weightTable, candidate);
       tempCandidate.clear();
       differentSet.addAll(allItems);
       differentSet.removeAll(I_);
-      // differentSet.removeAll(candidate);
 
       for (wPFIItem item : differentSet) {
         tempCandidate.addAll(candidate);
         tempCandidate.add(item);
 
-        if (itemsetWeight(tempCandidate) < t) {
+        if (itemsetWeight(weightTable, tempCandidate) < threshold) {
           tempCandidate.clear();
           continue;
         }
@@ -358,19 +382,16 @@ public class wPFIApriori implements wPFIAprioriInterface{
           continue;
         }
         if (useProbabilityModel) {
-          if (!conditionAlgorithm3(candidate, item, mu_)) {
+          if (!conditionAlgorithm3(supportDict, database, candidate, item, mu_, alpha, threshold, minsup)) {
             tempCandidate.clear();
             continue;
           }
         }
-
         candidateK.add(new HashSet<>(tempCandidate));
         tempCandidate.clear();
       }
-
       differentSet.clear();
     }
-
     return candidateK;
   }
 
@@ -381,8 +402,8 @@ public class wPFIApriori implements wPFIAprioriInterface{
    *          factorial is to be calculated.
    * @return a double value representing the factorial of n.
    */
-  @Override
-  public double factorial(int n) {
+  // @Override
+  static double factorial(int n) {
     if (n == 0 || n == 1)
       return 1.0;
 
@@ -401,9 +422,10 @@ public class wPFIApriori implements wPFIAprioriInterface{
    *
    * @return a double value representing the CDF at step k.
    */
-  @Override
-  public double CDF(int k, double lambda) {
+  // @Override
+  static double CDF(int k, double lambda) {
     double result = 0;
+
     for (int i = 0; i <= k; i++) {
       result += Math.pow(lambda, i) / factorial(i);
     }
@@ -423,14 +445,20 @@ public class wPFIApriori implements wPFIAprioriInterface{
    *                  search.
    * @return a double value representing the mu_ threshold.
    */
-  @Override
-  public double calculateMu_(double maxWeight, int lower, int upper) {
+  // @Override
+  static double calculateMu_(
+    int lower,
+    int upper,
+    int minsup,
+    double threshold,
+    double maxWeight
+  ) {
     double epsilon = 0.000001;
     double lowerDouble = (double) lower;
     double upperDouble = (double) upper;
 
     while (upperDouble - lowerDouble > epsilon) {
-      double value = 1 - CDF(minsup - 1, (upperDouble + lowerDouble) / 2.0) - t / maxWeight;
+      double value = 1 - CDF(minsup - 1, (upperDouble + lowerDouble) / 2.0) - threshold / maxWeight;
 
       if (value > 0)
         upperDouble -= (upperDouble + lowerDouble) / 2.0;
@@ -439,7 +467,6 @@ public class wPFIApriori implements wPFIAprioriInterface{
       else
         break;
     }
-
     return (upperDouble + lowerDouble) / 2.0;
   }
 
@@ -455,8 +482,17 @@ public class wPFIApriori implements wPFIAprioriInterface{
    * @return a boolean flag indicating whether the given itemset and item satisfy
    *         the conditions of the algorithm.
    */
-  @Override
-  public boolean conditionAlgorithm3(HashSet<wPFIItem> itemset, wPFIItem item, double mu_) {
+  // @Override
+  static boolean conditionAlgorithm3(
+    HashMap<HashSet<wPFIItem>, Double> supportDict,
+    UncertainDatabase database,
+    HashSet<wPFIItem> itemset,
+    wPFIItem item,
+    double mu_,
+    double alpha,
+    double threshold,
+    int minsup
+  ) {
     if (itemset == null || item == null)
       return false;
 
@@ -464,9 +500,9 @@ public class wPFIApriori implements wPFIAprioriInterface{
     itemWrapper.add(item);
 
     if (supportDict.get(itemset) == null)
-      Pr(itemset);
+      Pr(supportDict, database, itemset, threshold, minsup);
     if (supportDict.get(itemWrapper) == null)
-      Pr(itemWrapper);
+      Pr(supportDict, database, itemWrapper, threshold, minsup);
 
     double mu_X = supportDict.get(itemset);
     double mu_I = supportDict.get(itemWrapper);
@@ -474,24 +510,9 @@ public class wPFIApriori implements wPFIAprioriInterface{
     if (mu_X < mu_ || mu_I < mu_)
       return false;
 
-    if (mu_X * mu_I < alpha * transactionSize * mu_)
+    if (mu_X * mu_I < alpha * database.getTransactionSize() * mu_)
       return false;
 
     return true;
-  }
-
-  public static void main(String[] args) throws IOException {
-    String pathWrapper = "./../../data/" + args[0] + ".dat";
-
-    UncertainDatabase database = new UncertainDatabase();
-    database.loadFile(pathWrapper, false);
-
-    float msup_ratio = Float.parseFloat(args[1]);
-    float threshold = Float.parseFloat(args[2]);
-    float scale_factor = Float.parseFloat(args[3]);
-    boolean useProbabilityModel = Boolean.parseBoolean(args[4]);
-
-    wPFIApriori apriori = new wPFIApriori(database);
-    apriori.runAlgorithm(msup_ratio, threshold, scale_factor, useProbabilityModel);
   }
 }
